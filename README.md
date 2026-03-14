@@ -1,6 +1,20 @@
 # IMS — Inventory Management System
 
 > **Live Demo:** [https://ims-0nmu.onrender.com](https://ims-0nmu.onrender.com)
+Demo credentials
+
+Admin: 
+Login id: Bansi-P30 
+Password: Knpatel#2004
+
+Inventory Manager:
+Login id: Jaykishan-2006
+Password: Jaykishan-2006
+
+Warehouse Staff:
+Login id: Niti-max
+Password: Nitidiva@12
+
 
 A full-stack, role-based **Inventory Management System** built for real warehouse operations. It covers stock tracking, receipts, deliveries, internal transfers, a stock ledger, reports with PDF export, real-time in-app notifications, and full user management.
 

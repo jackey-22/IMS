@@ -100,13 +100,13 @@ router.get("/", async (req, res) => {
 
     return res.json(
       products.map((product) => {
-        const onHand = onHandMap.has(product._id.toString())
+        const currentOnHand = onHandMap.has(product._id.toString())
           ? onHandMap.get(product._id.toString())
           : product.initialStock;
 
         return {
           ...product.toObject(),
-          initialStock: onHand,
+          currentOnHand,
         };
       })
     );
@@ -123,13 +123,13 @@ router.get("/:id", async (req, res) => {
       return res.status(404).json({ message: "Product not found" });
     }
     const onHandMap = await getOnHandMap([product._id]);
-    const onHand = onHandMap.has(product._id.toString())
+    const currentOnHand = onHandMap.has(product._id.toString())
       ? onHandMap.get(product._id.toString())
       : product.initialStock;
 
     return res.json({
       ...product.toObject(),
-      initialStock: onHand,
+      currentOnHand,
     });
   } catch (error) {
     console.error("Get product failed", error);
@@ -166,16 +166,13 @@ router.put("/:id", async (req, res) => {
     }
 
     const onHandMap = await getOnHandMap([product._id]);
-    const hasBalances = onHandMap.has(product._id.toString());
-
-    if (hasBalances && product.initialStock !== onHandMap.get(product._id.toString())) {
-      product.initialStock = onHandMap.get(product._id.toString());
-      await product.save();
-    }
+    const currentOnHand = onHandMap.has(product._id.toString())
+      ? onHandMap.get(product._id.toString())
+      : product.initialStock;
 
     return res.json({
       ...product.toObject(),
-      initialStock: hasBalances ? onHandMap.get(product._id.toString()) : product.initialStock,
+      currentOnHand,
     });
   } catch (error) {
     console.error("Update product failed", error);

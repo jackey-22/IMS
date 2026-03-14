@@ -14,17 +14,6 @@ function padRef(n) {
   return String(n).padStart(4, "0");
 }
 
-async function syncProductOnHand(productId) {
-  const balances = await StockBalance.find({ productId }).select("qtyOnHand").lean();
-  const totalOnHand = balances.reduce((sum, item) => sum + (Number(item.qtyOnHand) || 0), 0);
-
-  await Product.findByIdAndUpdate(productId, {
-    initialStock: totalOnHand,
-  });
-
-  return totalOnHand;
-}
-
 async function nextDocumentNo(type) {
   const prefix = type === "receipt" ? "WH/IN" : "WH/OUT";
   const lastDoc = await InventoryDoc.findOne({ type })
@@ -174,7 +163,15 @@ router.post("/receipts", async (req, res) => {
     if (!product) return res.status(404).json({ message: "Product not found" });
     if (!warehouse) return res.status(404).json({ message: "Warehouse not found" });
 
-    const documentNo = await nextDocumentNo("receipt");
+    const [balance, productBalanceCount, documentNo] = await Promise.all([
+      StockBalance.findOne({
+        productId: product._id,
+        warehouseId: warehouse._id,
+        locationId: null,
+      }),
+      StockBalance.countDocuments({ productId: product._id }),
+      nextDocumentNo("receipt"),
+    ]);
 
     const doc = await InventoryDoc.create({
       type: "receipt",
@@ -196,24 +193,18 @@ router.post("/receipts", async (req, res) => {
       ],
     });
 
-    // Upsert StockBalance — add qty
-    let balance = await StockBalance.findOne({
-      productId: product._id,
-      warehouseId: warehouse._id,
-      locationId: null,
-    });
-
     let balanceAfter;
     if (balance) {
       balance.qtyOnHand += quantity;
       await balance.save();
       balanceAfter = balance.qtyOnHand;
     } else {
+      const seededOnHand = productBalanceCount === 0 ? Number(product.initialStock) || 0 : 0;
       const created = await StockBalance.create({
         productId: product._id,
         warehouseId: warehouse._id,
         locationId: null,
-        qtyOnHand: quantity,
+        qtyOnHand: seededOnHand + quantity,
         qtyReserved: 0,
       });
       balanceAfter = created.qtyOnHand;
@@ -229,8 +220,6 @@ router.post("/receipts", async (req, res) => {
       qtyOut: 0,
       balanceAfter,
     });
-
-    await syncProductOnHand(product._id);
 
     return res.status(201).json({
       id: doc._id,
@@ -318,14 +307,19 @@ router.post("/deliveries", async (req, res) => {
     if (!product) return res.status(404).json({ message: "Product not found" });
     if (!warehouse) return res.status(404).json({ message: "Warehouse not found" });
 
-    // Check stock available at this warehouse
-    const balance = await StockBalance.findOne({
-      productId: product._id,
-      warehouseId: warehouse._id,
-      locationId: null,
-    });
+    const [balance, productBalanceCount] = await Promise.all([
+      StockBalance.findOne({
+        productId: product._id,
+        warehouseId: warehouse._id,
+        locationId: null,
+      }),
+      StockBalance.countDocuments({ productId: product._id }),
+    ]);
 
-    const available = balance ? balance.qtyOnHand - (balance.qtyReserved || 0) : 0;
+    const seededOnHand = !balance && productBalanceCount === 0 ? Number(product.initialStock) || 0 : 0;
+    const available = balance
+      ? balance.qtyOnHand - (balance.qtyReserved || 0)
+      : seededOnHand;
     if (quantity > available) {
       return res.status(400).json({
         message: `Insufficient stock at ${warehouse.name}. Available: ${available}, Requested: ${quantity}.`,
@@ -354,10 +348,21 @@ router.post("/deliveries", async (req, res) => {
       ],
     });
 
-    // Subtract qty from StockBalance
-    balance.qtyOnHand -= quantity;
-    await balance.save();
-    const balanceAfter = balance.qtyOnHand;
+    let balanceAfter;
+    if (balance) {
+      balance.qtyOnHand -= quantity;
+      await balance.save();
+      balanceAfter = balance.qtyOnHand;
+    } else {
+      const created = await StockBalance.create({
+        productId: product._id,
+        warehouseId: warehouse._id,
+        locationId: null,
+        qtyOnHand: seededOnHand - quantity,
+        qtyReserved: 0,
+      });
+      balanceAfter = created.qtyOnHand;
+    }
 
     await StockLedger.create({
       productId: product._id,
@@ -369,8 +374,6 @@ router.post("/deliveries", async (req, res) => {
       qtyOut: quantity,
       balanceAfter,
     });
-
-    await syncProductOnHand(product._id);
 
     return res.status(201).json({
       id: doc._id,

@@ -105,7 +105,7 @@ function ProductModal({ isOpen, onClose, onSave, product = null, categories = []
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-ink mb-1">Initial Stock (optional)</label>
+              <label className="block text-sm font-medium text-ink mb-1">Initial Stock (base)</label>
               <input
                 type="number"
                 min="0"
@@ -318,6 +318,7 @@ export default function Products() {
                   <th className="text-left px-6 py-3 font-medium text-ink-soft text-xs uppercase tracking-wider">Category</th>
                   <th className="text-center px-6 py-3 font-medium text-ink-soft text-xs uppercase tracking-wider">UoM</th>
                   <th className="text-right px-6 py-3 font-medium text-ink-soft text-xs uppercase tracking-wider">Initial Stock</th>
+                  <th className="text-right px-6 py-3 font-medium text-ink-soft text-xs uppercase tracking-wider">Current Stock</th>
                   <th className="text-center px-6 py-3 font-medium text-ink-soft text-xs uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
@@ -329,6 +330,7 @@ export default function Products() {
                     <td className="px-6 py-3 text-ink">{categoryNameById.get(product.categoryId) || "Uncategorized"}</td>
                     <td className="px-6 py-3 text-center text-ink">{product.uom}</td>
                     <td className="px-6 py-3 text-right text-ink">{Number(product.initialStock || 0).toLocaleString()}</td>
+                    <td className="px-6 py-3 text-right font-semibold text-ink">{Number(product.currentOnHand ?? product.initialStock ?? 0).toLocaleString()}</td>
                     <td className="px-6 py-3 text-center">
                       <div className="flex items-center justify-center gap-2">
                         <button

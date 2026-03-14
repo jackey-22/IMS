@@ -51,8 +51,8 @@ export default function Operations() {
       <div className="rounded-2xl border border-line bg-surface p-6" style={{ boxShadow: "var(--shadow-md)" }}>
         <h1 className="text-3xl font-heading font-bold text-ink">Operations</h1>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-ink-soft">
-          Manage stock movement with two core warehouse flows. Receipts add stock when goods come in from suppliers.
-          Deliveries remove stock when goods leave for customers.
+          Manage stock movement with two core warehouse flows. Receipts add stock when goods arrive from suppliers.
+          Deliveries reduce stock when goods ship to customers.
         </p>
       </div>
 

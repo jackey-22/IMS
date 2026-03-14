@@ -327,18 +327,13 @@ export default function Deliveries() {
           </table>
         </div>
       </div>
-
+{/* 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <div className="rounded-xl border border-rose-200 bg-rose-50 p-4">
           <div className="text-xs font-semibold uppercase tracking-wide text-rose-800">Memory Tip</div>
-          <div className="mt-1 text-sm text-rose-900">Deliveries = Stock OUT = - Quantity</div>
+           <div className="mt-1 text-sm text-ink">Track outbound shipments to customers.</div>
         </div>
-        <div className="rounded-xl border border-line bg-surface p-4 lg:col-span-2">
-          <div className="text-sm text-ink-soft">Reference format</div>
-          <div className="mt-1 font-mono text-sm font-semibold text-ink">WH/OUT/0001</div>
-          <p className="mt-2 text-xs text-ink-soft">Pattern: &lt;Warehouse&gt;/&lt;Operation&gt;/&lt;ID&gt;. Operation for deliveries is OUT.</p>
-        </div>
-      </div>
+      </div> */}
 
       <DeliveryFormModal isOpen={modalOpen} onClose={() => setModalOpen(false)} />
     </div>

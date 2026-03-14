@@ -33,8 +33,13 @@ const postJson = async (path, body) => {
         continue;
       }
 
-      throw new Error(message);
+      const authError = new Error(message);
+      authError.retryable = false;
+      throw authError;
     } catch (error) {
+      if (error?.retryable === false) {
+        throw error;
+      }
       lastError = error;
       continue;
     }

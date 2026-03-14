@@ -8,6 +8,8 @@ import {
   createReceiptApi,
   listDeliveries,
   createDeliveryApi,
+  listTransfers,
+  createTransferApi,
 } from "../services/operationsApi.js";
 
 const InventoryOpsContext = createContext(null);
@@ -25,23 +27,26 @@ export function InventoryOpsProvider({ children }) {
   const [stock, setStock] = useState([]);
   const [receipts, setReceipts] = useState([]);
   const [deliveries, setDeliveries] = useState([]);
+  const [transfers, setTransfers] = useState([]);
   const [loading, setLoading] = useState(false);
 
   const fetchAll = useCallback(async () => {
     if (!token) return;
     setLoading(true);
     try {
-      const [prods, whs, recs, dels, stk] = await Promise.all([
+      const [prods, whs, recs, dels, trfs, stk] = await Promise.all([
         listProducts(token),
         listWarehouses(token),
         listReceipts(token),
         listDeliveries(token),
+        listTransfers(token),
         listStock(token),
       ]);
       setProducts(Array.isArray(prods) ? prods : []);
       setWarehouses(Array.isArray(whs) ? whs : []);
       setReceipts(Array.isArray(recs) ? recs : []);
       setDeliveries(Array.isArray(dels) ? dels : []);
+      setTransfers(Array.isArray(trfs) ? trfs : []);
       setStock(Array.isArray(stk) ? stk : []);
     } catch (err) {
       console.error("Failed to load inventory ops data", err);
@@ -63,11 +68,18 @@ export function InventoryOpsProvider({ children }) {
       }, 0);
       return `WH/IN/${padRef(maxRef + 1)}`;
     }
-    const maxRef = deliveries.reduce((max, entry) => {
+    if (operationType === "OUT") {
+      const maxRef = deliveries.reduce((max, entry) => {
+        const n = Number(entry.reference?.split("/").pop()) || 0;
+        return Math.max(max, n);
+      }, 0);
+      return `WH/OUT/${padRef(maxRef + 1)}`;
+    }
+    const maxRef = transfers.reduce((max, entry) => {
       const n = Number(entry.reference?.split("/").pop()) || 0;
       return Math.max(max, n);
     }, 0);
-    return `WH/OUT/${padRef(maxRef + 1)}`;
+    return `WH/TRF/${padRef(maxRef + 1)}`;
   };
 
   const createReceipt = async (payload) => {
@@ -85,6 +97,7 @@ export function InventoryOpsProvider({ children }) {
       const result = await createReceiptApi(token, {
         productId: payload.productId,
         warehouseId: payload.warehouseId,
+        destinationLocationId: payload.destinationLocationId || null,
         qty,
         partnerName: payload.contact || "",
         fromText: payload.from || "",
@@ -126,6 +139,43 @@ export function InventoryOpsProvider({ children }) {
     }
   };
 
+  const createTransfer = async (payload) => {
+    const qty = Number(payload.quantity);
+    if (Number.isNaN(qty) || qty <= 0) {
+      return { ok: false, error: "Transfer quantity must be greater than zero." };
+    }
+    if (!payload.productId) {
+      return { ok: false, error: "Select a valid product." };
+    }
+    if (!payload.sourceWarehouseId || !payload.destinationWarehouseId) {
+      return { ok: false, error: "Select both source and destination warehouses." };
+    }
+    if (
+      payload.sourceWarehouseId === payload.destinationWarehouseId &&
+      String(payload.sourceLocationId || "") === String(payload.destinationLocationId || "")
+    ) {
+      return { ok: false, error: "Transfer must change warehouse or location." };
+    }
+
+    try {
+      const result = await createTransferApi(token, {
+        productId: payload.productId,
+        sourceWarehouseId: payload.sourceWarehouseId,
+        destinationWarehouseId: payload.destinationWarehouseId,
+        sourceLocationId: payload.sourceLocationId || null,
+        destinationLocationId: payload.destinationLocationId || null,
+        qty,
+        partnerName: payload.responsible || "",
+        scheduleDate: payload.scheduleDate,
+        status: payload.status || "ready",
+      });
+      await fetchAll();
+      return { ok: true, reference: result.reference };
+    } catch (err) {
+      return { ok: false, error: err.message || "Failed to create transfer." };
+    }
+  };
+
   // Manual stock quantity adjustment (optimistic local update)
   const updateStockQuantity = ({ productId, onHand }) => {
     const nextOnHand = Number(onHand);
@@ -146,10 +196,12 @@ export function InventoryOpsProvider({ children }) {
     stock,
     receipts,
     deliveries,
+    transfers,
     loading,
     getNextReference,
     createReceipt,
     createDelivery,
+    createTransfer,
     updateStockQuantity,
     refresh: fetchAll,
   };

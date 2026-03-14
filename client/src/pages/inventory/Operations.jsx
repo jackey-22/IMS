@@ -1,4 +1,4 @@
-import { ArrowRight, PackageMinus, PackagePlus } from "lucide-react";
+import { ArrowLeftRight, ArrowRight, PackageMinus, PackagePlus } from "lucide-react";
 import { Link } from "react-router-dom";
 
 function OperationCard({
@@ -98,6 +98,28 @@ export default function Operations() {
             icon: "text-rose-700",
             dot: "bg-rose-500",
             link: "text-rose-800",
+          }}
+        />
+
+        <OperationCard
+          title="Internal Transfers"
+          badge="Stock Movement"
+          to="/inventory/operations/transfers"
+          Icon={ArrowLeftRight}
+          description="Move stock between warehouses while keeping total on-hand intact."
+          points={[
+            "Warehouse to warehouse",
+            "Stock moves internally",
+            "Reference pattern: WH/TRF/0001",
+          ]}
+          tone={{
+            border: "border-blue-200",
+            bg: "bg-blue-50/50",
+            badge: "bg-blue-100 text-blue-800",
+            iconBg: "bg-blue-100",
+            icon: "text-blue-700",
+            dot: "bg-blue-500",
+            link: "text-blue-800",
           }}
         />
       </div>

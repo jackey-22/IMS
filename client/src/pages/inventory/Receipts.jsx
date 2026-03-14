@@ -26,6 +26,7 @@ function ReceiptFormModal({ isOpen, onClose }) {
     quantity: "",
     from: "",
     warehouseId: "",
+    destinationLocationId: "",
     contact: "",
     scheduleDate: new Date().toISOString().slice(0, 10),
     status: "ready",
@@ -39,6 +40,8 @@ function ReceiptFormModal({ isOpen, onClose }) {
   const currentWhOnHand = warehouseEntry?.onHand ?? 0;
   const afterOnHand = currentWhOnHand + (Number.isNaN(qty) ? 0 : qty);
   const nextReference = getNextReference("IN");
+  const selectedWarehouse = warehouses.find((wh) => wh._id === form.warehouseId);
+  const destinationLocations = selectedWarehouse?.locations || [];
 
   const submit = async (e) => {
     e.preventDefault();
@@ -55,6 +58,7 @@ function ReceiptFormModal({ isOpen, onClose }) {
       quantity: "",
       from: "",
       warehouseId: "",
+      destinationLocationId: "",
       contact: "",
       scheduleDate: new Date().toISOString().slice(0, 10),
       status: "ready",
@@ -138,6 +142,22 @@ function ReceiptFormModal({ isOpen, onClose }) {
                     </option>
                   );
                 })}
+              </select>
+            </div>
+
+            <div>
+              <label className="mb-1 block text-sm font-medium text-ink">To Location (optional)</label>
+              <select
+                value={form.destinationLocationId}
+                onChange={(e) => setForm((prev) => ({ ...prev, destinationLocationId: e.target.value }))}
+                className="w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm text-ink"
+              >
+                <option value="">Warehouse level</option>
+                {destinationLocations.map((loc) => (
+                  <option key={loc._id} value={loc._id}>
+                    {loc.name} ({loc.code}) · {loc.type}
+                  </option>
+                ))}
               </select>
             </div>
 

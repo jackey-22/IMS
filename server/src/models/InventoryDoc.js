@@ -49,6 +49,10 @@ const inventoryDocSchema = new mongoose.Schema(
       unique: true,
       trim: true
     },
+    scheduledDate: {
+      type: Date,
+      default: null
+    },
     partnerName: {
       type: String,
       trim: true
@@ -91,10 +95,6 @@ const inventoryDocSchema = new mongoose.Schema(
       default: null
     },
     validatedAt: {
-      type: Date,
-      default: null
-    },
-    scheduledDate: {
       type: Date,
       default: null
     },

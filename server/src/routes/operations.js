@@ -14,8 +14,22 @@ function padRef(n) {
   return String(n).padStart(4, "0");
 }
 
+async function syncProductOnHand(productId) {
+  const balances = await StockBalance.find({ productId }).select("qtyOnHand").lean();
+  const totalOnHand = balances.reduce((sum, item) => sum + (Number(item.qtyOnHand) || 0), 0);
+  await Product.findByIdAndUpdate(productId, { initialStock: totalOnHand });
+  return totalOnHand;
+}
+
 async function nextDocumentNo(type) {
-  const prefix = type === "receipt" ? "WH/IN" : "WH/OUT";
+  const prefix =
+    type === "receipt"
+      ? "WH/IN"
+      : type === "delivery"
+        ? "WH/OUT"
+        : type === "transfer"
+          ? "WH/TRF"
+          : "WH/DOC";
   const lastDoc = await InventoryDoc.findOne({ type })
     .sort({ createdAt: -1 })
     .select("documentNo")
@@ -34,7 +48,7 @@ router.get("/stock", async (req, res) => {
     const products = await Product.find({}).select("name sku initialStock").lean();
     const balances = await StockBalance.find({})
       .populate("productId", "name sku uom")
-      .populate("warehouseId", "name code")
+      .populate("warehouseId", "name code locations")
       .lean();
 
     const map = new Map();
@@ -76,9 +90,18 @@ router.get("/stock", async (req, res) => {
       }
       entry.onHand += bal.qtyOnHand;
       entry.reserved += bal.qtyReserved;
+      const locationId = bal.locationId ? bal.locationId.toString() : null;
+      const location = locationId
+        ? (bal.warehouseId?.locations || []).find((loc) => loc._id.toString() === locationId)
+        : null;
+
       entry.warehouses.push({
         warehouseId: bal.warehouseId?._id?.toString() || null,
         warehouseName: bal.warehouseId?.name || "",
+        locationId,
+        locationName: location?.name || "",
+        locationCode: location?.code || "",
+        locationType: location?.type || "",
         onHand: bal.qtyOnHand,
         reserved: bal.qtyReserved,
       });
@@ -144,7 +167,7 @@ router.get("/receipts", async (req, res) => {
 // POST /api/operations/receipts
 router.post("/receipts", async (req, res) => {
   try {
-    const { productId, warehouseId, qty, partnerName, fromText, scheduleDate, status } = req.body;
+    const { productId, warehouseId, destinationLocationId, qty, partnerName, fromText, scheduleDate, status } = req.body;
 
     if (!productId || !warehouseId || !qty) {
       return res.status(400).json({ message: "productId, warehouseId, and qty are required" });
@@ -163,15 +186,17 @@ router.post("/receipts", async (req, res) => {
     if (!product) return res.status(404).json({ message: "Product not found" });
     if (!warehouse) return res.status(404).json({ message: "Warehouse not found" });
 
-    const [balance, productBalanceCount, documentNo] = await Promise.all([
-      StockBalance.findOne({
-        productId: product._id,
-        warehouseId: warehouse._id,
-        locationId: null,
-      }),
-      StockBalance.countDocuments({ productId: product._id }),
-      nextDocumentNo("receipt"),
-    ]);
+    const normalizedDestinationLocationId = destinationLocationId || null;
+    if (normalizedDestinationLocationId) {
+      const hasLocation = (warehouse.locations || []).some(
+        (loc) => loc._id.toString() === normalizedDestinationLocationId
+      );
+      if (!hasLocation) {
+        return res.status(404).json({ message: "Destination location not found" });
+      }
+    }
+
+    const documentNo = await nextDocumentNo("receipt");
 
     const doc = await InventoryDoc.create({
       type: "receipt",
@@ -188,9 +213,16 @@ router.post("/receipts", async (req, res) => {
           productId: product._id,
           uom: product.uom,
           qty: quantity,
-          destinationLocationId: null,
+          destinationLocationId: normalizedDestinationLocationId,
         },
       ],
+    });
+
+    // Upsert StockBalance — add qty
+    let balance = await StockBalance.findOne({
+      productId: product._id,
+      warehouseId: warehouse._id,
+      locationId: normalizedDestinationLocationId,
     });
 
     let balanceAfter;
@@ -199,12 +231,11 @@ router.post("/receipts", async (req, res) => {
       await balance.save();
       balanceAfter = balance.qtyOnHand;
     } else {
-      const seededOnHand = productBalanceCount === 0 ? Number(product.initialStock) || 0 : 0;
       const created = await StockBalance.create({
         productId: product._id,
         warehouseId: warehouse._id,
-        locationId: null,
-        qtyOnHand: seededOnHand + quantity,
+        locationId: normalizedDestinationLocationId,
+        qtyOnHand: quantity,
         qtyReserved: 0,
       });
       balanceAfter = created.qtyOnHand;
@@ -213,7 +244,7 @@ router.post("/receipts", async (req, res) => {
     await StockLedger.create({
       productId: product._id,
       warehouseId: warehouse._id,
-      locationId: null,
+      locationId: normalizedDestinationLocationId,
       documentId: doc._id,
       type: "receipt",
       qtyIn: quantity,
@@ -388,6 +419,256 @@ router.post("/deliveries", async (req, res) => {
   } catch (error) {
     console.error("Create delivery failed", error);
     return res.status(500).json({ message: "Create delivery failed" });
+  }
+});
+
+// GET /api/operations/transfers
+router.get("/transfers", async (req, res) => {
+  try {
+    const docs = await InventoryDoc.find({ type: "transfer" })
+      .populate("sourceWarehouseId", "name code")
+      .populate("destinationWarehouseId", "name code")
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const productIds = [
+      ...new Set(
+        docs.flatMap((d) => d.lines.map((l) => l.productId?.toString()).filter(Boolean))
+      ),
+    ];
+    const products = await Product.find({ _id: { $in: productIds } }).lean();
+    const productMap = new Map(products.map((p) => [p._id.toString(), p]));
+
+    const warehouseIds = [
+      ...new Set(
+        docs
+          .flatMap((doc) => [doc.sourceWarehouseId?._id?.toString(), doc.destinationWarehouseId?._id?.toString()])
+          .filter(Boolean)
+      ),
+    ];
+    const warehouses = await Warehouse.find({ _id: { $in: warehouseIds } }).lean();
+    const warehouseMap = new Map(warehouses.map((wh) => [wh._id.toString(), wh]));
+
+    const findLocationName = (warehouseId, locationId) => {
+      if (!warehouseId || !locationId) return "";
+      const wh = warehouseMap.get(warehouseId);
+      if (!wh) return "";
+      const loc = (wh.locations || []).find((l) => l._id.toString() === locationId);
+      return loc ? `${loc.name} (${loc.code})` : "";
+    };
+
+    const result = docs.map((doc) => {
+      const line = doc.lines[0];
+      const product = line ? productMap.get(line.productId?.toString()) : null;
+      const sourceWarehouseId = doc.sourceWarehouseId?._id?.toString() || null;
+      const destinationWarehouseId = doc.destinationWarehouseId?._id?.toString() || null;
+      const sourceLocationId = line?.sourceLocationId?.toString() || null;
+      const destinationLocationId = line?.destinationLocationId?.toString() || null;
+      const sourceName = doc.sourceWarehouseId
+        ? `${doc.sourceWarehouseId.name} (${doc.sourceWarehouseId.code})`
+        : "";
+      const destinationName = doc.destinationWarehouseId
+        ? `${doc.destinationWarehouseId.name} (${doc.destinationWarehouseId.code})`
+        : "";
+      const sourceLocationName = findLocationName(sourceWarehouseId, sourceLocationId);
+      const destinationLocationName = findLocationName(destinationWarehouseId, destinationLocationId);
+      return {
+        id: doc._id,
+        reference: doc.documentNo,
+        productId: line?.productId?.toString() || null,
+        productName: product?.name || "Unknown",
+        productSku: product?.sku || "",
+        quantity: line?.qty || 0,
+        from: sourceLocationName ? `${sourceName} • ${sourceLocationName}` : sourceName,
+        to: destinationLocationName ? `${destinationName} • ${destinationLocationName}` : destinationName,
+        sourceWarehouseId,
+        destinationWarehouseId,
+        sourceLocationId,
+        destinationLocationId,
+        sourceLocationName,
+        destinationLocationName,
+        contact: doc.partnerName || "",
+        scheduleDate: doc.scheduledDate
+          ? new Date(doc.scheduledDate).toISOString().slice(0, 10)
+          : new Date(doc.createdAt).toISOString().slice(0, 10),
+        status: doc.status,
+        createdAt: new Date(doc.createdAt).toISOString().slice(0, 10),
+      };
+    });
+
+    return res.json(result);
+  } catch (error) {
+    console.error("List transfers failed", error);
+    return res.status(500).json({ message: "List transfers failed" });
+  }
+});
+
+// POST /api/operations/transfers
+router.post("/transfers", async (req, res) => {
+  try {
+    const {
+      productId,
+      sourceWarehouseId,
+      destinationWarehouseId,
+      sourceLocationId,
+      destinationLocationId,
+      qty,
+      partnerName,
+      scheduleDate,
+      status,
+    } = req.body;
+
+    if (!productId || !sourceWarehouseId || !destinationWarehouseId || !qty) {
+      return res.status(400).json({ message: "productId, sourceWarehouseId, destinationWarehouseId, and qty are required" });
+    }
+
+    const normalizedSourceLocationId = sourceLocationId || null;
+    const normalizedDestinationLocationId = destinationLocationId || null;
+
+    if (
+      sourceWarehouseId === destinationWarehouseId &&
+      String(normalizedSourceLocationId || "") === String(normalizedDestinationLocationId || "")
+    ) {
+      return res.status(400).json({ message: "Transfer must change warehouse or location" });
+    }
+
+    const quantity = Number(qty);
+    if (Number.isNaN(quantity) || quantity <= 0) {
+      return res.status(400).json({ message: "qty must be a positive number" });
+    }
+
+    const [product, sourceWarehouse, destinationWarehouse] = await Promise.all([
+      Product.findById(productId).lean(),
+      Warehouse.findById(sourceWarehouseId).lean(),
+      Warehouse.findById(destinationWarehouseId).lean(),
+    ]);
+
+    if (!product) return res.status(404).json({ message: "Product not found" });
+    if (!sourceWarehouse) return res.status(404).json({ message: "Source warehouse not found" });
+    if (!destinationWarehouse) return res.status(404).json({ message: "Destination warehouse not found" });
+
+    if (normalizedSourceLocationId) {
+      const hasLocation = (sourceWarehouse.locations || []).some(
+        (loc) => loc._id.toString() === normalizedSourceLocationId
+      );
+      if (!hasLocation) {
+        return res.status(404).json({ message: "Source location not found" });
+      }
+    }
+
+    if (normalizedDestinationLocationId) {
+      const hasLocation = (destinationWarehouse.locations || []).some(
+        (loc) => loc._id.toString() === normalizedDestinationLocationId
+      );
+      if (!hasLocation) {
+        return res.status(404).json({ message: "Destination location not found" });
+      }
+    }
+
+    const sourceBalance = await StockBalance.findOne({
+      productId: product._id,
+      warehouseId: sourceWarehouse._id,
+      locationId: normalizedSourceLocationId,
+    });
+
+    if (!sourceBalance) {
+      const scopeLabel = normalizedSourceLocationId ? "selected location" : "warehouse level";
+      return res.status(400).json({
+        message: `No stock at ${scopeLabel}. Choose a location that has stock.`,
+      });
+    }
+
+    const available = sourceBalance.qtyOnHand - (sourceBalance.qtyReserved || 0);
+    if (quantity > available) {
+      return res.status(400).json({
+        message: `Insufficient stock at ${sourceWarehouse.name}. Available: ${available}, Requested: ${quantity}.`,
+      });
+    }
+
+    const documentNo = await nextDocumentNo("transfer");
+
+    const doc = await InventoryDoc.create({
+      type: "transfer",
+      status: status || "ready",
+      documentNo,
+      partnerName: partnerName || "",
+      scheduledDate: scheduleDate ? new Date(scheduleDate) : new Date(),
+      sourceWarehouseId: sourceWarehouse._id,
+      destinationWarehouseId: destinationWarehouse._id,
+      createdBy: req.user._id,
+      lines: [
+        {
+          productId: product._id,
+          uom: product.uom,
+          qty: quantity,
+          sourceLocationId: normalizedSourceLocationId,
+          destinationLocationId: normalizedDestinationLocationId,
+        },
+      ],
+    });
+
+    // Subtract from source
+    sourceBalance.qtyOnHand -= quantity;
+    await sourceBalance.save();
+
+    // Add to destination
+    let destinationBalance = await StockBalance.findOne({
+      productId: product._id,
+      warehouseId: destinationWarehouse._id,
+      locationId: normalizedDestinationLocationId,
+    });
+
+    if (destinationBalance) {
+      destinationBalance.qtyOnHand += quantity;
+      await destinationBalance.save();
+    } else {
+      destinationBalance = await StockBalance.create({
+        productId: product._id,
+        warehouseId: destinationWarehouse._id,
+        locationId: normalizedDestinationLocationId,
+        qtyOnHand: quantity,
+        qtyReserved: 0,
+      });
+    }
+
+    await StockLedger.create([
+      {
+        productId: product._id,
+        warehouseId: sourceWarehouse._id,
+        locationId: normalizedSourceLocationId,
+        documentId: doc._id,
+        type: "transfer",
+        qtyIn: 0,
+        qtyOut: quantity,
+        balanceAfter: sourceBalance.qtyOnHand,
+      },
+      {
+        productId: product._id,
+        warehouseId: destinationWarehouse._id,
+        locationId: normalizedDestinationLocationId,
+        documentId: doc._id,
+        type: "transfer",
+        qtyIn: quantity,
+        qtyOut: 0,
+        balanceAfter: destinationBalance.qtyOnHand,
+      },
+    ]);
+
+    await syncProductOnHand(product._id);
+
+    return res.status(201).json({
+      id: doc._id,
+      reference: documentNo,
+      productId: product._id,
+      productName: product.name,
+      sourceWarehouseId: sourceWarehouse._id,
+      destinationWarehouseId: destinationWarehouse._id,
+      quantity,
+      status: doc.status,
+    });
+  } catch (error) {
+    console.error("Create transfer failed", error);
+    return res.status(500).json({ message: "Create transfer failed" });
   }
 });
 

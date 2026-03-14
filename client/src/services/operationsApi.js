@@ -35,3 +35,13 @@ export const createDeliveryApi = (token, body) =>
     headers: authHeaders(token),
     body: JSON.stringify(body),
   }).then(handleResponse);
+
+export const listTransfers = (token) =>
+  fetch(`${API_BASE}/transfers`, { headers: authHeaders(token) }).then(handleResponse);
+
+export const createTransferApi = (token, body) =>
+  fetch(`${API_BASE}/transfers`, {
+    method: "POST",
+    headers: authHeaders(token),
+    body: JSON.stringify(body),
+  }).then(handleResponse);

@@ -35,8 +35,9 @@ function ReceiptFormModal({ isOpen, onClose }) {
 
   const selectedStock = stock.find((item) => item.id === form.productId);
   const qty = Number(form.quantity || 0);
-  const currentOnHand = selectedStock?.onHand || 0;
-  const afterOnHand = currentOnHand + (Number.isNaN(qty) ? 0 : qty);
+  const warehouseEntry = selectedStock?.warehouses?.find((w) => w.warehouseId === form.warehouseId);
+  const currentWhOnHand = warehouseEntry?.onHand ?? 0;
+  const afterOnHand = currentWhOnHand + (Number.isNaN(qty) ? 0 : qty);
   const nextReference = getNextReference("IN");
 
   const submit = async (e) => {
@@ -127,11 +128,16 @@ function ReceiptFormModal({ isOpen, onClose }) {
                 required
               >
                 <option value="">Select warehouse</option>
-                {warehouses.map((wh) => (
-                  <option key={wh._id} value={wh._id}>
-                    {wh.name} ({wh.code})
-                  </option>
-                ))}
+                {warehouses.map((wh) => {
+                  const whEntry = selectedStock?.warehouses?.find((w) => w.warehouseId === wh._id.toString());
+                  const currentQty = whEntry?.onHand ?? 0;
+                  const suffix = form.productId ? ` — ${currentQty} on hand` : "";
+                  return (
+                    <option key={wh._id} value={wh._id}>
+                      {wh.name} ({wh.code}){suffix}
+                    </option>
+                  );
+                })}
               </select>
             </div>
 
@@ -158,10 +164,33 @@ function ReceiptFormModal({ isOpen, onClose }) {
             </div>
           </div>
 
+          {selectedStock && selectedStock.warehouses.length > 0 && (
+            <div className="rounded-lg border border-blue-100 bg-blue-50 p-3">
+              <div className="mb-2 text-xs font-semibold text-blue-800">Stock by Warehouse — {selectedStock.product}</div>
+              <div className="grid grid-cols-2 gap-1 sm:grid-cols-3">
+                {selectedStock.warehouses.map((wh) => (
+                  <div
+                    key={wh.warehouseId}
+                    className={`flex items-center justify-between rounded px-2 py-1.5 text-xs ${
+                      wh.warehouseId === form.warehouseId
+                        ? "bg-blue-600 text-white font-semibold"
+                        : "border border-blue-100 bg-white text-ink"
+                    }`}
+                  >
+                    <span className="truncate">{wh.warehouseName}</span>
+                    <span className="ml-2 shrink-0 font-semibold">{wh.onHand}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm">
             <div className="font-semibold text-emerald-900">Stock Impact Preview</div>
             <div className="mt-1 text-emerald-800">
-              Current On Hand: {currentOnHand} | Receipt: +{Number.isNaN(qty) ? 0 : qty} | After Save: {afterOnHand}
+              {form.warehouseId
+                ? <>Warehouse On Hand: {currentWhOnHand} | Receipt: +{Number.isNaN(qty) ? 0 : qty} | After Save: {afterOnHand}</>
+                : <>Select a warehouse to see current stock at that location</>}
             </div>
           </div>
 

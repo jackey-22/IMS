@@ -123,11 +123,16 @@ function DeliveryFormModal({ isOpen, onClose }) {
                 required
               >
                 <option value="">Select warehouse</option>
-                {warehouses.map((wh) => (
-                  <option key={wh._id} value={wh._id}>
-                    {wh.name} ({wh.code})
-                  </option>
-                ))}
+                {warehouses.map((wh) => {
+                  const whEntry = selectedStock?.warehouses?.find((w) => w.warehouseId === wh._id.toString());
+                  const available = whEntry ? (whEntry.onHand - (whEntry.reserved || 0)) : 0;
+                  const suffix = form.productId ? ` — ${available} avail.` : "";
+                  return (
+                    <option key={wh._id} value={wh._id}>
+                      {wh.name} ({wh.code}){suffix}
+                    </option>
+                  );
+                })}
               </select>
             </div>
 
@@ -164,6 +169,33 @@ function DeliveryFormModal({ isOpen, onClose }) {
               />
             </div>
           </div>
+
+          {selectedStock && selectedStock.warehouses.length > 0 && (
+            <div className="rounded-lg border border-blue-100 bg-blue-50 p-3">
+              <div className="mb-2 text-xs font-semibold text-blue-800">Stock by Warehouse — {selectedStock.product}</div>
+              <div className="grid grid-cols-2 gap-1 sm:grid-cols-3">
+                {selectedStock.warehouses.map((wh) => {
+                  const available = wh.onHand - (wh.reserved || 0);
+                  const isSelected = wh.warehouseId === form.warehouseId;
+                  return (
+                    <div
+                      key={wh.warehouseId}
+                      className={`flex items-center justify-between rounded px-2 py-1.5 text-xs ${
+                        isSelected
+                          ? "bg-blue-600 text-white font-semibold"
+                          : available > 0
+                          ? "border border-blue-100 bg-white text-ink"
+                          : "border border-rose-100 bg-rose-50 text-rose-600"
+                      }`}
+                    >
+                      <span className="truncate">{wh.warehouseName}</span>
+                      <span className="ml-2 shrink-0 font-semibold">{available} avail.</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           <div className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm">
             <div className="font-semibold text-rose-900">Stock Impact Preview</div>

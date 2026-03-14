@@ -1,22 +1,29 @@
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useState } from "react";
-import { LayoutDashboard, Users, Warehouse, User, LogOut, Search, Bell, ShieldCheck, MapPin } from "lucide-react";
+import { LayoutDashboard, Users, Warehouse, User, LogOut, Search, Bell, ShieldCheck, MapPin, Settings, ChevronDown, ChevronRight } from "lucide-react";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { useNotifications } from "../../context/NotificationsContext.jsx";
 
 export default function AdminLayout() {
+  const location = useLocation();
   const navigate = useNavigate();
   const { session, logout } = useAuth();
   const { items, unreadCount, markRead, markAllRead } = useNotifications();
   const [isOpen, setIsOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(true);
 
   const navItems = [
     { icon: LayoutDashboard, label: "Dashboard", path: "/admin/dashboard" },
     { icon: Users, label: "Users", path: "/admin/users" },
-    { icon: Warehouse, label: "Settings • Warehouses", path: "/admin/settings/warehouse" },
-    { icon: MapPin, label: "Settings • Locations", path: "/admin/settings/locations" },
     { icon: User, label: "Profile", path: "/admin/profile" }
   ];
+
+  const settingsItems = [
+    { icon: Warehouse, label: "Warehouses", path: "/admin/settings/warehouse" },
+    { icon: MapPin, label: "Locations", path: "/admin/settings/locations" }
+  ];
+
+  const isSettingsActive = settingsItems.some((item) => location.pathname.startsWith(item.path));
 
   const handleLogout = () => {
     logout();
@@ -73,6 +80,37 @@ export default function AdminLayout() {
       fontWeight: "500",
       background: isActive ? "#1f2937" : "transparent",
       borderLeft: isActive ? "4px solid #3b82f6" : "4px solid transparent",
+      transition: "all 0.2s ease"
+    }),
+    settingsToggle: (isActive) => ({
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: "12px",
+      padding: "12px 24px",
+      color: isActive ? "#ffffff" : "#9ca3af",
+      fontSize: "14px",
+      fontWeight: "500",
+      background: isActive ? "#1f2937" : "transparent",
+      borderLeft: isActive ? "4px solid #3b82f6" : "4px solid transparent",
+      transition: "all 0.2s ease",
+      cursor: "pointer"
+    }),
+    settingsSubNav: {
+      marginLeft: "10px",
+      borderLeft: "1px solid #1f2937"
+    },
+    settingsSubLink: (isActive) => ({
+      display: "flex",
+      alignItems: "center",
+      gap: "10px",
+      padding: "10px 24px 10px 30px",
+      color: isActive ? "#ffffff" : "#9ca3af",
+      textDecoration: "none",
+      fontSize: "13px",
+      fontWeight: "500",
+      background: isActive ? "#1f2937" : "transparent",
+      borderLeft: isActive ? "3px solid #3b82f6" : "3px solid transparent",
       transition: "all 0.2s ease"
     }),
     sidebarFooter: {
@@ -228,6 +266,36 @@ export default function AdminLayout() {
               <span>{item.label}</span>
             </NavLink>
           ))}
+
+          <div
+            style={styles.settingsToggle(isSettingsActive)}
+            onClick={() => setSettingsOpen((prev) => !prev)}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                setSettingsOpen((prev) => !prev);
+              }
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <Settings size={20} />
+              <span>Settings</span>
+            </div>
+            {settingsOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+          </div>
+
+          {settingsOpen && (
+            <div style={styles.settingsSubNav}>
+              {settingsItems.map((item) => (
+                <NavLink key={item.path} to={item.path} style={({ isActive }) => styles.settingsSubLink(isActive)}>
+                  <item.icon size={16} />
+                  <span>{item.label}</span>
+                </NavLink>
+              ))}
+            </div>
+          )}
         </nav>
 
         <div style={styles.sidebarFooter}>

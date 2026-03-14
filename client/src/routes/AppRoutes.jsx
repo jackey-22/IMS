@@ -29,6 +29,7 @@ import Suppliers from "../pages/inventory/Suppliers.jsx";
 import Profile from "../pages/inventory/Profile.jsx";
 import WarehouseSettingsPage from "../pages/admin/WarehouseSettingsPage.jsx";
 import LocationSettingsPage from "../pages/admin/LocationSettingsPage.jsx";
+import AdminProfilePage from "../pages/admin/AdminProfilePage.jsx";
 import ProfilePage from "../pages/shared/ProfilePage.jsx";
 import InventoryLayout from "../components/inventory/InventoryLayout.jsx";
 
@@ -97,7 +98,7 @@ export default function AppRoutes() {
             <Route path="/admin/users" element={<UsersPage />} />
             <Route path="/admin/settings/warehouse" element={<WarehouseSettingsPage />} />
             <Route path="/admin/settings/locations" element={<LocationSettingsPage />} />
-            <Route path="/admin/profile" element={<ProfilePage />} />
+            <Route path="/admin/profile" element={<AdminProfilePage />} />
           </Route>
         </Route>
 

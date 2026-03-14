@@ -1,4 +1,5 @@
-const API_BASE = "/api/products";
+import { apiBase } from "./apiBase.js";
+const API_BASE = `${apiBase}/api/products`;
 
 const authHeaders = (token) => ({
   "Content-Type": "application/json",

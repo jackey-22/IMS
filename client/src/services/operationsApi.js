@@ -60,3 +60,9 @@ export const createTransferApi = (token, body) =>
 
 export const listStockLedger = (token) =>
   fetch(`${API_BASE}/stock-ledger`, { headers: authHeaders(token) }).then(handleResponse);
+
+export const confirmTransferApi = (token, id) =>
+  fetch(`${API_BASE}/transfers/${id}/confirm`, {
+    method: "PUT",
+    headers: authHeaders(token),
+  }).then(handleResponse);

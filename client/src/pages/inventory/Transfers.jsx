@@ -53,22 +53,8 @@ function TransferFormModal({ isOpen, onClose }) {
 
   const sourceWarehouse = warehouses.find((wh) => wh._id === form.sourceWarehouseId);
   const destinationWarehouse = warehouses.find((wh) => wh._id === form.destinationWarehouseId);
-  const availableSourceWarehouses = selectedStock?.warehouses
-    ? warehouses.filter((wh) =>
-        selectedStock.warehouses.some(
-          (entry) => entry.warehouseId === wh._id && entry.onHand > 0
-        )
-      )
-    : warehouses;
-  const sourceLocations =
-    sourceWarehouseStock
-      ?.filter((entry) => entry.locationId && entry.onHand > 0)
-      .map((entry) => ({
-        _id: entry.locationId,
-        name: entry.locationName || "",
-        code: entry.locationCode || "",
-        type: entry.locationType || "",
-      })) || [];
+  const availableSourceWarehouses = warehouses;
+  const sourceLocations = sourceWarehouse?.locations || [];
   const destinationLocations = destinationWarehouse?.locations || [];
 
   const submit = async (e) => {

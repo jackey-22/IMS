@@ -10,7 +10,6 @@ import WarehouseDashboard from "../pages/warehouse/WarehouseDashboard.jsx";
 import ReceiptsPage from "../pages/warehouse/ReceiptsPage.jsx";
 import DeliveriesPage from "../pages/warehouse/DeliveriesPage.jsx";
 import TransfersPage from "../pages/warehouse/TransfersPage.jsx";
-import StockCountPage from "../pages/warehouse/StockCountPage.jsx";
 import ProductsSearchPage from "../pages/warehouse/ProductsSearchPage.jsx";
 import AdminLayout from "../components/admin/AdminLayout.jsx";
 import AdminDashboard from "../pages/admin/AdminDashboard.jsx";
@@ -107,7 +106,6 @@ export default function AppRoutes() {
           <Route path="/warehouse/receipts" element={<ReceiptsPage />} />
           <Route path="/warehouse/deliveries" element={<DeliveriesPage />} />
           <Route path="/warehouse/transfers" element={<TransfersPage />} />
-          <Route path="/warehouse/stock-count" element={<StockCountPage />} />
           <Route path="/warehouse/products" element={<ProductsSearchPage />} />
           <Route path="/warehouse/profile" element={<ProfilePage />} />
         </Route>

@@ -118,7 +118,7 @@ router.get("/stock", async (req, res) => {
 });
 
 // GET /api/operations/stock-ledger
-router.get("/stock-ledger", async (req, res) => {
+router.get("/stock-ledger", requireRole("admin", "inventory_manager", "warehouse_staff"), async (req, res) => {
   try {
     const entries = await StockLedger.find({})
       .populate("productId", "name sku")
@@ -595,14 +595,17 @@ router.get("/transfers", async (req, res) => {
       const destinationWarehouseId = doc.destinationWarehouseId?._id?.toString() || null;
       const sourceLocationId = line?.sourceLocationId?.toString() || null;
       const destinationLocationId = line?.destinationLocationId?.toString() || null;
-      const sourceName = doc.sourceWarehouseId
+      const sourceWarehouseLabel = doc.sourceWarehouseId
         ? `${doc.sourceWarehouseId.name} (${doc.sourceWarehouseId.code})`
-        : "";
-      const destinationName = doc.destinationWarehouseId
+        : "Unknown Warehouse";
+      const destinationWarehouseLabel = doc.destinationWarehouseId
         ? `${doc.destinationWarehouseId.name} (${doc.destinationWarehouseId.code})`
-        : "";
+        : "Unknown Warehouse";
       const sourceLocationName = findLocationName(sourceWarehouseId, sourceLocationId);
       const destinationLocationName = findLocationName(destinationWarehouseId, destinationLocationId);
+
+      const fromLabel = sourceLocationName ? `${sourceWarehouseLabel} • ${sourceLocationName}` : sourceWarehouseLabel;
+      const toLabel = destinationLocationName ? `${destinationWarehouseLabel} • ${destinationLocationName}` : destinationWarehouseLabel;
       return {
         id: doc._id,
         reference: doc.documentNo,
@@ -610,8 +613,8 @@ router.get("/transfers", async (req, res) => {
         productName: product?.name || "Unknown",
         productSku: product?.sku || "",
         quantity: line?.qty || 0,
-        from: sourceLocationName ? `${sourceName} • ${sourceLocationName}` : sourceName,
-        to: destinationLocationName ? `${destinationName} • ${destinationLocationName}` : destinationName,
+        from: fromLabel,
+        to: toLabel,
         sourceWarehouseId,
         destinationWarehouseId,
         sourceLocationId,
@@ -657,7 +660,7 @@ router.post("/transfers", requireRole("admin", "inventory_manager"), async (req,
     const normalizedDestinationLocationId = destinationLocationId || null;
 
     if (
-      sourceWarehouseId === destinationWarehouseId &&
+      String(sourceWarehouseId) === String(destinationWarehouseId) &&
       String(normalizedSourceLocationId || "") === String(normalizedDestinationLocationId || "")
     ) {
       return res.status(400).json({ message: "Transfer must change warehouse or location" });
@@ -696,6 +699,8 @@ router.post("/transfers", requireRole("admin", "inventory_manager"), async (req,
       }
     }
 
+    // Stock check disabled as per request
+    /*
     const sourceBalance = await StockBalance.findOne({
       productId: product._id,
       warehouseId: sourceWarehouse._id,
@@ -715,6 +720,7 @@ router.post("/transfers", requireRole("admin", "inventory_manager"), async (req,
         message: `Insufficient stock at ${sourceWarehouse.name}. Available: ${available}, Requested: ${quantity}.`,
       });
     }
+    */
 
     const documentNo = await nextDocumentNo("transfer");
 
@@ -738,55 +744,6 @@ router.post("/transfers", requireRole("admin", "inventory_manager"), async (req,
       ],
     });
 
-    // Subtract from source
-    sourceBalance.qtyOnHand -= quantity;
-    await sourceBalance.save();
-
-    // Add to destination
-    let destinationBalance = await StockBalance.findOne({
-      productId: product._id,
-      warehouseId: destinationWarehouse._id,
-      locationId: normalizedDestinationLocationId,
-    });
-
-    if (destinationBalance) {
-      destinationBalance.qtyOnHand += quantity;
-      await destinationBalance.save();
-    } else {
-      destinationBalance = await StockBalance.create({
-        productId: product._id,
-        warehouseId: destinationWarehouse._id,
-        locationId: normalizedDestinationLocationId,
-        qtyOnHand: quantity,
-        qtyReserved: 0,
-      });
-    }
-
-    await StockLedger.create([
-      {
-        productId: product._id,
-        warehouseId: sourceWarehouse._id,
-        locationId: normalizedSourceLocationId,
-        documentId: doc._id,
-        type: "transfer",
-        qtyIn: 0,
-        qtyOut: quantity,
-        balanceAfter: sourceBalance.qtyOnHand,
-      },
-      {
-        productId: product._id,
-        warehouseId: destinationWarehouse._id,
-        locationId: normalizedDestinationLocationId,
-        documentId: doc._id,
-        type: "transfer",
-        qtyIn: quantity,
-        qtyOut: 0,
-        balanceAfter: destinationBalance.qtyOnHand,
-      },
-    ]);
-
-    await syncProductOnHand(product._id);
-
     return res.status(201).json({
       id: doc._id,
       reference: documentNo,
@@ -800,6 +757,106 @@ router.post("/transfers", requireRole("admin", "inventory_manager"), async (req,
   } catch (error) {
     console.error("Create transfer failed", error);
     return res.status(500).json({ message: "Create transfer failed" });
+  }
+});
+
+// PUT /api/operations/transfers/:id/confirm — Warehouse staff confirms internal transfer
+router.put("/transfers/:id/confirm", requireRole("admin", "inventory_manager", "warehouse_staff"), async (req, res) => {
+  try {
+    const doc = await InventoryDoc.findById(req.params.id);
+    if (!doc) return res.status(404).json({ message: "Transfer order not found" });
+    if (doc.type !== "transfer") return res.status(400).json({ message: "Invalid document type" });
+    if (doc.status === "done") return res.status(400).json({ message: "Transfer already completed" });
+
+    const line = doc.lines[0];
+    if (!line) return res.status(400).json({ message: "Transfer has no items" });
+
+    const product = await Product.findById(line.productId);
+    const sourceWarehouse = await Warehouse.findById(doc.sourceWarehouseId);
+    const destinationWarehouse = await Warehouse.findById(doc.destinationWarehouseId);
+
+    if (!product || !sourceWarehouse || !destinationWarehouse) {
+      return res.status(404).json({ message: "Product or Warehouse not found" });
+    }
+
+    // Double check stock check disabled as per request
+    let sourceBalance = await StockBalance.findOne({
+      productId: product._id,
+      warehouseId: sourceWarehouse._id,
+      locationId: line.sourceLocationId || null,
+    });
+
+    if (!sourceBalance) {
+      // Create record if it doesn't exist
+      sourceBalance = await StockBalance.create({
+        productId: product._id,
+        warehouseId: sourceWarehouse._id,
+        locationId: line.sourceLocationId || null,
+        qtyOnHand: 0,
+        qtyReserved: 0
+      });
+    }
+
+    // 1. Deduct from source
+    sourceBalance.qtyOnHand -= line.qty;
+    await sourceBalance.save();
+
+    // 2. Add to destination
+    let destinationBalance = await StockBalance.findOne({
+      productId: product._id,
+      warehouseId: destinationWarehouse._id,
+      locationId: line.destinationLocationId || null,
+    });
+
+    if (destinationBalance) {
+      destinationBalance.qtyOnHand += line.qty;
+      await destinationBalance.save();
+    } else {
+      destinationBalance = await StockBalance.create({
+        productId: product._id,
+        warehouseId: destinationWarehouse._id,
+        locationId: line.destinationLocationId || null,
+        qtyOnHand: line.qty,
+        qtyReserved: 0,
+      });
+    }
+
+    // 3. Record in ledger
+    await StockLedger.create([
+      {
+        productId: product._id,
+        warehouseId: sourceWarehouse._id,
+        locationId: line.sourceLocationId || null,
+        documentId: doc._id,
+        type: "transfer",
+        qtyIn: 0,
+        qtyOut: line.qty,
+        balanceAfter: sourceBalance.qtyOnHand,
+      },
+      {
+        productId: product._id,
+        warehouseId: destinationWarehouse._id,
+        locationId: line.destinationLocationId || null,
+        documentId: doc._id,
+        type: "transfer",
+        qtyIn: line.qty,
+        qtyOut: 0,
+        balanceAfter: destinationBalance.qtyOnHand,
+      },
+    ]);
+
+    // 4. Update status
+    doc.status = "done";
+    doc.validatedBy = req.user._id;
+    doc.validatedAt = new Date();
+    await doc.save();
+
+    await syncProductOnHand(product._id);
+
+    return res.json({ message: "Transfer confirmed and stock moved", status: doc.status });
+  } catch (error) {
+    console.error("Confirm transfer failed", error);
+    return res.status(500).json({ message: "Confirm transfer failed" });
   }
 });
 

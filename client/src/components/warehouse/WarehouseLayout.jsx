@@ -26,7 +26,6 @@ export default function WarehouseLayout() {
     { icon: ArrowDownCircle, label: "Receipts", path: "/warehouse/receipts" },
     { icon: ArrowUpCircle, label: "Deliveries", path: "/warehouse/deliveries" },
     { icon: ArrowLeftRight, label: "Transfers", path: "/warehouse/transfers" },
-    { icon: ClipboardCheck, label: "Stock Count", path: "/warehouse/stock-count" },
     { icon: Package, label: "Products", path: "/warehouse/products" },
     { icon: User, label: "Profile", path: "/warehouse/profile" }
   ];

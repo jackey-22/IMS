@@ -151,7 +151,7 @@ export function InventoryOpsProvider({ children }) {
       return { ok: false, error: "Select both source and destination warehouses." };
     }
     if (
-      payload.sourceWarehouseId === payload.destinationWarehouseId &&
+      String(payload.sourceWarehouseId) === String(payload.destinationWarehouseId) &&
       String(payload.sourceLocationId || "") === String(payload.destinationLocationId || "")
     ) {
       return { ok: false, error: "Transfer must change warehouse or location." };

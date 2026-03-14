@@ -30,7 +30,9 @@ export default function LoginPage() {
           ? "/warehouse/dashboard"
           : session.user?.role === "admin"
             ? "/admin/dashboard"
-            : "/dashboard";
+            : session.user?.role === "inventory_manager"
+              ? "/inventory/dashboard"
+              : "/dashboard";
       setSession(session);
       navigate(target, { replace: true });
     } catch (error) {

@@ -21,6 +21,7 @@ export const signToken = (user) => {
 export const sanitizeUser = (user) => ({
   id: user._id.toString(),
   name: user.name,
+  loginId: user.loginId,
   email: user.email,
   role: user.role,
   createdAt: user.createdAt

@@ -1,36 +1,28 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { LayoutDashboard, Users, LogOut, Search, Bell, ShieldCheck } from "lucide-react";
 import { useAuth } from "../../context/AuthContext.jsx";
-import { 
-  LayoutDashboard, 
-  ArrowDownCircle, 
-  ArrowUpCircle, 
-  ArrowLeftRight, 
-  ClipboardCheck, 
-  Package, 
-  User, 
-  LogOut,
-  Search,
-  Bell
-} from "lucide-react";
 
-export default function WarehouseLayout() {
+export default function AdminLayout() {
   const navigate = useNavigate();
-  const { logout } = useAuth();
+  const { session, logout } = useAuth();
 
   const navItems = [
-    { icon: LayoutDashboard, label: "Dashboard", path: "/warehouse/dashboard" },
-    { icon: ArrowDownCircle, label: "Receipts", path: "/warehouse/receipts" },
-    { icon: ArrowUpCircle, label: "Deliveries", path: "/warehouse/deliveries" },
-    { icon: ArrowLeftRight, label: "Transfers", path: "/warehouse/transfers" },
-    { icon: ClipboardCheck, label: "Stock Count", path: "/warehouse/stock-count" },
-    { icon: Package, label: "Products", path: "/warehouse/products" },
-    { icon: User, label: "Profile", path: "/warehouse/profile" },
+    { icon: LayoutDashboard, label: "Dashboard", path: "/admin/dashboard" },
+    { icon: Users, label: "Users", path: "/admin/users" }
   ];
 
   const handleLogout = () => {
     logout();
     navigate("/login", { replace: true });
   };
+
+  const fullName = session?.user?.name || "Admin User";
+  const initials = fullName
+    .split(" ")
+    .map((w) => w[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
 
   const styles = {
     shell: {
@@ -92,8 +84,7 @@ export default function WarehouseLayout() {
       border: "none",
       cursor: "pointer",
       fontSize: "14px",
-      fontWeight: "500",
-      transition: "color 0.2s"
+      fontWeight: "500"
     },
     main: {
       flex: 1,
@@ -186,16 +177,12 @@ export default function WarehouseLayout() {
       <aside style={styles.sidebar}>
         <div style={styles.sidebarHeader}>
           <div style={styles.avatar("32px", "white", "#3b82f6")}>IMS</div>
-          <h2 style={{ fontSize: "20px", fontWeight: "800", margin: 0 }}>Warehouse</h2>
+          <h2 style={{ fontSize: "20px", fontWeight: "800", margin: 0 }}>Admin</h2>
         </div>
-        
+
         <nav style={styles.sidebarNav}>
           {navItems.map((item) => (
-            <NavLink 
-              key={item.path} 
-              to={item.path} 
-              style={({ isActive }) => styles.sidebarLink(isActive)}
-            >
+            <NavLink key={item.path} to={item.path} style={({ isActive }) => styles.sidebarLink(isActive)}>
               <item.icon size={20} />
               <span>{item.label}</span>
             </NavLink>
@@ -220,15 +207,18 @@ export default function WarehouseLayout() {
           <div style={styles.topbarActions}>
             <button style={styles.iconBtn}>
               <Bell size={20} />
-              <span style={styles.badge}>3</span>
+              <span style={styles.badge}>2</span>
             </button>
-            
+
             <div style={styles.userProfile}>
               <div style={{ textAlign: "right", marginRight: "12px" }}>
-                <div style={{ fontSize: "14px", fontWeight: "600", color: "#111827" }}>John Doe</div>
-                <div style={{ fontSize: "12px", color: "#6b7280" }}>Warehouse Staff</div>
+                <div style={{ fontSize: "14px", fontWeight: "600", color: "#111827" }}>{fullName}</div>
+                <div style={{ fontSize: "12px", color: "#6b7280", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "4px" }}>
+                  <ShieldCheck size={12} />
+                  <span>Administrator</span>
+                </div>
               </div>
-              <div style={styles.avatar()}>JD</div>
+              <div style={styles.avatar()}>{initials}</div>
             </div>
           </div>
         </header>

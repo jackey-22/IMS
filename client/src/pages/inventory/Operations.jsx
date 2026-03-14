@@ -101,35 +101,8 @@ export default function Operations() {
           }}
         />
 
-        <OperationCard
-          title="Internal Transfers"
-          badge="Stock Movement"
-          to="/inventory/operations/transfers"
-          Icon={ArrowLeftRight}
-          description="Move stock between warehouses while keeping total on-hand intact."
-          points={[
-            "Warehouse to warehouse",
-            "Stock moves internally",
-            "Reference pattern: WH/TRF/0001",
-          ]}
-          tone={{
-            border: "border-blue-200",
-            bg: "bg-blue-50/50",
-            badge: "bg-blue-100 text-blue-800",
-            iconBg: "bg-blue-100",
-            icon: "text-blue-700",
-            dot: "bg-blue-500",
-            link: "text-blue-800",
-          }}
-        />
       </div>
 
-      <div className="rounded-2xl border border-line bg-surface-soft p-5">
-        <h3 className="text-sm font-semibold uppercase tracking-wide text-ink-soft">Simple Reminder</h3>
-        <p className="mt-2 text-sm text-ink">
-          Receipts = incoming stock (+) | Deliveries = outgoing stock (-)
-        </p>
-      </div>
     </div>
   );
 }

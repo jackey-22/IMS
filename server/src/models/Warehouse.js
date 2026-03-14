@@ -1,0 +1,62 @@
+import mongoose from "mongoose";
+
+const locationSchema = new mongoose.Schema(
+  {
+    name: {
+      type: String,
+      required: true,
+      trim: true
+    },
+    code: {
+      type: String,
+      required: true,
+      trim: true
+    },
+    type: {
+      type: String,
+      enum: ["rack", "bin", "zone"],
+      default: "rack"
+    },
+    isActive: {
+      type: Boolean,
+      default: true
+    }
+  },
+  {
+    _id: true,
+    timestamps: true
+  }
+);
+
+const warehouseSchema = new mongoose.Schema(
+  {
+    name: {
+      type: String,
+      required: true,
+      trim: true
+    },
+    code: {
+      type: String,
+      required: true,
+      unique: true,
+      trim: true
+    },
+    address: {
+      type: String,
+      trim: true
+    },
+    isActive: {
+      type: Boolean,
+      default: true
+    },
+    locations: {
+      type: [locationSchema],
+      default: []
+    }
+  },
+  {
+    timestamps: true
+  }
+);
+
+export default mongoose.model("Warehouse", warehouseSchema);

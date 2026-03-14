@@ -26,7 +26,6 @@ import Transfers from "../pages/inventory/Transfers.jsx";
 import Stock from "../pages/inventory/Stock.jsx";
 import StockLedger from "../pages/inventory/StockLedger.jsx";
 import Reports from "../pages/inventory/Reports.jsx";
-import Suppliers from "../pages/inventory/Suppliers.jsx";
 import Profile from "../pages/inventory/Profile.jsx";
 import WarehouseSettingsPage from "../pages/admin/WarehouseSettingsPage.jsx";
 import LocationSettingsPage from "../pages/admin/LocationSettingsPage.jsx";
@@ -126,7 +125,6 @@ export default function AppRoutes() {
             <Route path="/inventory/stock" element={<Stock />} />
             <Route path="/inventory/stock-ledger" element={<StockLedger />} />
             <Route path="/inventory/reports" element={<Reports />} />
-            <Route path="/inventory/suppliers" element={<Suppliers />} />
             <Route path="/inventory/profile" element={<Profile />} />
           </Route>
         </Route>

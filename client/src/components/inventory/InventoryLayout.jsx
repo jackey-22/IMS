@@ -11,7 +11,6 @@ import {
   ClipboardList,
   NotebookText,
   FileBarChart2,
-  Users,
   User,
   LogOut,
   Search,
@@ -34,7 +33,6 @@ export default function InventoryLayout() {
     { icon: NotebookText, label: "Stock", path: "/inventory/stock" },
     { icon: NotebookText, label: "Stock Ledger", path: "/inventory/stock-ledger" },
     { icon: FileBarChart2, label: "Reports", path: "/inventory/reports" },
-    { icon: Users, label: "Suppliers", path: "/inventory/suppliers" },
     { icon: User, label: "Profile", path: "/inventory/profile" }
   ];
 

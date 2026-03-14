@@ -11,6 +11,7 @@ import usersRouter from "./routes/users.js";
 import profileRouter from "./routes/profile.js";
 import operationsRouter from "./routes/operations.js";
 import notificationsRouter from "./routes/notifications.js";
+import dashboardRouter from "./routes/dashboard.js";
 
 dotenv.config();
 
@@ -29,6 +30,7 @@ app.use("/api/users", usersRouter);
 app.use("/api/profile", profileRouter);
 app.use("/api/operations", operationsRouter);
 app.use("/api/notifications", notificationsRouter);
+app.use("/api/dashboard", dashboardRouter);
 
 app.use((req, res) => {
   res.status(404).json({ message: "Route not found" });

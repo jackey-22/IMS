@@ -26,6 +26,12 @@ export const createReceiptApi = (token, body) =>
     body: JSON.stringify(body),
   }).then(handleResponse);
 
+export const confirmReceiptApi = (token, id) =>
+  fetch(`${API_BASE}/receipts/${id}/confirm`, {
+    method: "PUT",
+    headers: authHeaders(token),
+  }).then(handleResponse);
+
 export const listDeliveries = (token) =>
   fetch(`${API_BASE}/deliveries`, { headers: authHeaders(token) }).then(handleResponse);
 
@@ -34,6 +40,12 @@ export const createDeliveryApi = (token, body) =>
     method: "POST",
     headers: authHeaders(token),
     body: JSON.stringify(body),
+  }).then(handleResponse);
+
+export const confirmDeliveryApi = (token, id) =>
+  fetch(`${API_BASE}/deliveries/${id}/confirm`, {
+    method: "PUT",
+    headers: authHeaders(token),
   }).then(handleResponse);
 
 export const listTransfers = (token) =>

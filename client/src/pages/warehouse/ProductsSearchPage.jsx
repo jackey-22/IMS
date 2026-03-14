@@ -1,4 +1,4 @@
-import { Search, ChevronRight, Map, Edit, Check, X } from "lucide-react";
+import { Search, ChevronRight, Map, Edit, Check, X, Filter } from "lucide-react";
 import { useState } from "react";
 
 export default function ProductsSearchPage() {
@@ -41,23 +41,23 @@ export default function ProductsSearchPage() {
     btnSecondary: { background: "white", color: "#111827", border: "1px solid #e5e7eb", padding: "8px 16px", borderRadius: "8px", fontWeight: "600", fontSize: "14px", cursor: "pointer", display: "flex", alignItems: "center", gap: "8px" },
     filterGroup: { display: "flex", flexDirection: "column", gap: "6px" },
     label: { fontSize: "12px", fontWeight: "600", color: "#6b7280" },
-    select: { padding: "8px 12px", borderRadius: "8px", border: "1px solid #e5e7eb", fontSize: "14px", outline: "none" }
+    select: { padding: "8px 12px", borderRadius: "8px", border: "1px solid #e5e7eb", fontSize: "14px", outline: "none", background: "white" }
   };
 
   return (
     <div>
       <div style={commonStyles.titleSection}>
-        <h1 style={commonStyles.h1}>Product Inventory Search</h1>
-        <button style={commonStyles.btnSecondary}><Map size={18} /> Map</button>
+        <h1 style={commonStyles.h1}>Warehouse Inventory Catalog</h1>
+        <button style={commonStyles.btnSecondary}><Map size={18} /> View Map</button>
       </div>
 
       <div style={{ ...commonStyles.card, marginBottom: "24px", padding: "20px" }}>
         <div style={{ display: "grid", gridTemplateColumns: "1fr auto auto auto", gap: "16px", alignItems: "end" }}>
           <div style={commonStyles.filterGroup}>
-            <label style={commonStyles.label}>Search Products</label>
+            <label style={commonStyles.label}>Product Search</label>
             <div style={{ display: "flex", background: "#f3f4f6", padding: "8px 16px", borderRadius: "8px", border: "none", alignItems: "center", gap: "8px" }}>
               <Search size={18} color="#6b7280" />
-              <input placeholder="SKU or Name..." style={{ background: "transparent", border: "none", outline: "none", width: "100%", fontSize: "14px" }} />
+              <input placeholder="Search by SKU or Name..." style={{ background: "transparent", border: "none", outline: "none", width: "100%", fontSize: "14px" }} />
             </div>
           </div>
           
@@ -71,14 +71,15 @@ export default function ProductsSearchPage() {
           </div>
 
           <div style={commonStyles.filterGroup}>
-            <label style={commonStyles.label}>Warehouse</label>
+            <label style={commonStyles.label}>Storage Zone</label>
             <select style={commonStyles.select}>
-              <option>All Warehouses</option>
+              <option>All Zones</option>
               <option>Main Warehouse</option>
+              <option>North Depot</option>
             </select>
           </div>
 
-          <button style={{ ...commonStyles.btnPrimary, height: "40px" }}>Apply</button>
+          <button style={{ ...commonStyles.btnPrimary, height: "40px", display: "flex", alignItems: "center", gap: "8px" }}><Filter size={16} /> Filter</button>
         </div>
       </div>
 
@@ -86,7 +87,7 @@ export default function ProductsSearchPage() {
         <table style={commonStyles.table}>
           <thead>
             <tr>
-              <th style={commonStyles.th}>Product</th>
+              <th style={commonStyles.th}>Product Details</th>
               <th style={commonStyles.th}>SKU</th>
               <th style={commonStyles.th}>Stock</th>
               <th style={commonStyles.th}>Location</th>
@@ -96,48 +97,49 @@ export default function ProductsSearchPage() {
           <tbody>
             {products.map((p, i) => (
               <tr key={i}>
-                <td style={{ ...commonStyles.td, fontWeight: "600" }}>{p.name}</td>
-                <td style={{ ...commonStyles.td, color: "#6b7280" }}>{p.sku}</td>
-                <td style={{ ...commonStyles.td, fontWeight: "700" }}>
+                <td style={{ ...commonStyles.td, fontWeight: "700" }}>{p.name}</td>
+                <td style={{ ...commonStyles.td, color: "#6b7280", fontMono: "true", fontSize: "13px" }}>{p.sku}</td>
+                <td style={{ ...commonStyles.td, fontWeight: "800" }}>
                   {editingSku === p.sku ? (
                     <input
                       type="number"
                       value={draftStock}
                       onChange={(e) => setDraftStock(e.target.value)}
-                      style={{ padding: "6px 10px", borderRadius: "6px", border: "1px solid #e5e7eb", width: "90px" }}
+                      style={{ padding: "6px 10px", borderRadius: "6px", border: "1px solid #3b82f6", width: "90px", outline: "none" }}
                     />
                   ) : (
                     p.stock
                   )}
                 </td>
-                <td style={commonStyles.td}>{p.location}</td>
+                <td style={commonStyles.td}>
+                   <div style={{ fontSize: "13px", fontWeight: "600" }}>{p.warehouse}</div>
+                   <div style={{ fontSize: "12px", color: "#6b7280" }}>{p.location}</div>
+                </td>
                 <td style={commonStyles.td}>
                   {editingSku === p.sku ? (
                     <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
                       <button
                         onClick={() => saveStockEdit(p)}
-                        style={{ background: "transparent", border: "none", cursor: "pointer", color: "#16a34a" }}
+                        style={{ background: "#10b981", border: "none", color: "white", borderRadius: "6px", padding: "4px" }}
                       >
-                        <Check size={18} />
+                        <Check size={16} />
                       </button>
                       <button
                         onClick={cancelStockEdit}
-                        style={{ background: "transparent", border: "none", cursor: "pointer", color: "#ef4444" }}
+                        style={{ background: "#ef4444", border: "none", color: "white", borderRadius: "6px", padding: "4px" }}
                       >
-                        <X size={18} />
+                        <X size={16} />
                       </button>
                     </div>
                   ) : (
-                    <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                    <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
                       <button
                         onClick={() => startStockEdit(p)}
-                        style={{ background: "transparent", border: "none", cursor: "pointer", color: "#6b7280" }}
+                        style={{ background: "transparent", border: "none", cursor: "pointer", color: "#3b82f6" }}
                       >
                         <Edit size={18} />
                       </button>
-                      <button style={{ background: "transparent", border: "none", cursor: "pointer", color: "#6b7280" }}>
-                        <ChevronRight size={18} />
-                      </button>
+                      <ChevronRight size={18} color="#9ca3af" />
                     </div>
                   )}
                 </td>

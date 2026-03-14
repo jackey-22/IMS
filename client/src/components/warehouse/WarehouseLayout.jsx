@@ -2,14 +2,14 @@ import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { useNotifications } from "../../context/NotificationsContext.jsx";
 import { useState } from "react";
-import { 
-  LayoutDashboard, 
-  ArrowDownCircle, 
-  ArrowUpCircle, 
-  ArrowLeftRight, 
-  ClipboardCheck, 
-  Package, 
-  User, 
+import {
+  LayoutDashboard,
+  ArrowDownCircle,
+  ArrowUpCircle,
+  ArrowLeftRight,
+  ClipboardCheck,
+  Package,
+  User,
   LogOut,
   Search,
   Bell
@@ -17,17 +17,9 @@ import {
 
 export default function WarehouseLayout() {
   const navigate = useNavigate();
-  const { session, logout } = useAuth();
+  const { logout, session } = useAuth();
   const { items, unreadCount, markRead, markAllRead } = useNotifications();
   const [isOpen, setIsOpen] = useState(false);
-
-  const fullName = session?.user?.name || "Warehouse User";
-  const initials = fullName
-    .split(" ")
-    .map((w) => w[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
 
   const navItems = [
     { icon: LayoutDashboard, label: "Dashboard", path: "/warehouse/dashboard" },
@@ -36,7 +28,7 @@ export default function WarehouseLayout() {
     { icon: ArrowLeftRight, label: "Transfers", path: "/warehouse/transfers" },
     { icon: ClipboardCheck, label: "Stock Count", path: "/warehouse/stock-count" },
     { icon: Package, label: "Products", path: "/warehouse/products" },
-    { icon: User, label: "Profile", path: "/warehouse/profile" },
+    { icon: User, label: "Profile", path: "/warehouse/profile" }
   ];
 
   const handleLogout = () => {
@@ -44,11 +36,21 @@ export default function WarehouseLayout() {
     navigate("/login", { replace: true });
   };
 
+  const userName = session?.user?.name || "Warehouse Staff";
+  const userRoleLabel = session?.user?.role ? session.user.role.replace("_", " ") : "Warehouse Staff";
+  const initials = userName
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
+
   const styles = {
     shell: {
       display: "flex",
       minHeight: "100vh",
-      fontFamily: "'Inter', sans-serif",
+      fontFamily: "'Manrope', sans-serif",
       background: "#f9fafb"
     },
     sidebar: {
@@ -234,12 +236,12 @@ export default function WarehouseLayout() {
           <div style={styles.avatar("32px", "white", "#3b82f6")}>IMS</div>
           <h2 style={{ fontSize: "20px", fontWeight: "800", margin: 0 }}>Warehouse</h2>
         </div>
-        
+
         <nav style={styles.sidebarNav}>
           {navItems.map((item) => (
-            <NavLink 
-              key={item.path} 
-              to={item.path} 
+            <NavLink
+              key={item.path}
+              to={item.path}
               style={({ isActive }) => styles.sidebarLink(isActive)}
             >
               <item.icon size={20} />
@@ -299,13 +301,13 @@ export default function WarehouseLayout() {
                 </div>
               )}
             </div>
-            
+
             <div style={styles.userProfile}>
               <div style={{ textAlign: "right", marginRight: "12px" }}>
-                <div style={{ fontSize: "14px", fontWeight: "600", color: "#111827" }}>{fullName}</div>
-                <div style={{ fontSize: "12px", color: "#6b7280" }}>Warehouse Staff</div>
+                <div style={{ fontSize: "14px", fontWeight: "600", color: "#111827" }}>{userName}</div>
+                <div style={{ fontSize: "12px", color: "#6b7280", textTransform: "capitalize" }}>{userRoleLabel}</div>
               </div>
-              <div style={styles.avatar()}>{initials}</div>
+              <div style={styles.avatar()}>{initials || "WH"}</div>
             </div>
           </div>
         </header>

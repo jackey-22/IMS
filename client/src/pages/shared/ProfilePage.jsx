@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Mail, Shield, UserCircle2, KeyRound, CheckCircle2 } from "lucide-react";
+import { Mail, Shield, UserCircle2, KeyRound, CheckCircle2, Save, Loader2 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { changeMyPassword, getMyProfile, updateMyProfile } from "../../services/profileApi.js";
 import { isValidEmail, isValidPassword, passwordHint } from "../../services/authApi.js";
@@ -61,6 +61,7 @@ export default function ProfilePage() {
     const source = (profile?.name || profile?.loginId || "U").trim();
     return source
       .split(" ")
+      .filter(Boolean)
       .map((part) => part[0])
       .join("")
       .slice(0, 2)
@@ -69,29 +70,13 @@ export default function ProfilePage() {
 
   const pushFeedback = (type, text) => {
     setFeedback({ type, text });
-    setTimeout(() => setFeedback(null), 2800);
-  };
-
-  const onProfileChange = (e) => {
-    const { name, value } = e.target;
-    setProfileForm((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const onPasswordChange = (e) => {
-    const { name, value } = e.target;
-    setPasswordForm((prev) => ({ ...prev, [name]: value }));
+    setTimeout(() => setFeedback(null), 3000);
   };
 
   const handleProfileSubmit = async (e) => {
     e.preventDefault();
-    if (!profileForm.name.trim()) {
-      pushFeedback("error", "Name is required.");
-      return;
-    }
-    if (!isValidEmail(profileForm.email.trim())) {
-      pushFeedback("error", "Enter a valid email address.");
-      return;
-    }
+    if (!profileForm.name.trim()) return pushFeedback("error", "Name is required.");
+    if (!isValidEmail(profileForm.email.trim())) return pushFeedback("error", "Invalid email format.");
 
     setSavingProfile(true);
     try {
@@ -103,7 +88,7 @@ export default function ProfilePage() {
       setSession((prev) => (prev ? { ...prev, user: payload.user } : prev));
       pushFeedback("success", "Profile updated successfully.");
     } catch (err) {
-      pushFeedback("error", err.message || "Failed to update profile.");
+      pushFeedback("error", err.message || "Update failed.");
     } finally {
       setSavingProfile(false);
     }
@@ -112,17 +97,10 @@ export default function ProfilePage() {
   const handlePasswordSubmit = async (e) => {
     e.preventDefault();
     if (!passwordForm.currentPassword || !passwordForm.newPassword || !passwordForm.confirmPassword) {
-      pushFeedback("error", "All password fields are required.");
-      return;
+      return pushFeedback("error", "All fields are required.");
     }
-    if (!isValidPassword(passwordForm.newPassword)) {
-      pushFeedback("error", passwordHint);
-      return;
-    }
-    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      pushFeedback("error", "Passwords do not match.");
-      return;
-    }
+    if (!isValidPassword(passwordForm.newPassword)) return pushFeedback("error", passwordHint);
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) return pushFeedback("error", "Passwords do not match.");
 
     setSavingPassword(true);
     try {
@@ -130,148 +108,183 @@ export default function ProfilePage() {
       setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
       pushFeedback("success", "Password updated successfully.");
     } catch (err) {
-      pushFeedback("error", err.message || "Failed to update password.");
+      pushFeedback("error", err.message || "Password update failed.");
     } finally {
       setSavingPassword(false);
     }
   };
 
   const styles = {
-    heading: { fontSize: "24px", fontWeight: 700, color: "#111827", margin: 0 },
+    heading: { fontSize: "24px", fontWeight: 700, color: "#111827", margin: "0 0 24px 0" },
     card: {
       background: "#ffffff",
       borderRadius: "12px",
       border: "1px solid #e5e7eb",
       boxShadow: "0 1px 2px 0 rgba(0,0,0,0.05)",
-      overflow: "hidden"
+      overflow: "hidden",
+      marginBottom: "24px"
     },
+    cardHeader: {
+        padding: "16px 24px",
+        borderBottom: "1px solid #e5e7eb",
+        fontSize: "16px",
+        fontWeight: "600",
+        background: "#f9fafb"
+    },
+    cardBody: { padding: "24px" },
     avatar: {
-      width: "100px",
-      height: "100px",
+      width: "80px",
+      height: "80px",
       borderRadius: "50%",
       background: "#3b82f6",
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
       color: "white",
-      fontSize: "32px",
+      fontSize: "28px",
       fontWeight: 700,
-      margin: "0 auto 20px"
+      margin: "0 auto 16px"
     },
+    inputGroup: { marginBottom: "16px" },
+    label: { display: "block", fontSize: "14px", fontWeight: "600", color: "#374151", marginBottom: "6px" },
     input: {
       width: "100%",
-      padding: "12px 14px",
-      borderRadius: "10px",
+      padding: "10px 14px",
+      borderRadius: "8px",
       border: "1px solid #d1d5db",
       fontSize: "14px",
-      outline: "none"
+      outline: "none",
+      transition: "border-color 0.2s"
     },
-    button: {
-      minHeight: "42px",
-      padding: "0 16px",
-      borderRadius: "8px",
-      border: "1px solid #111827",
+    btnPrimary: {
       background: "#111827",
-      color: "#fff",
-      fontWeight: 600,
-      cursor: "pointer"
-    },
-    helperButton: {
-      minHeight: "42px",
-      padding: "0 16px",
+      color: "#ffffff",
+      padding: "10px 20px",
       borderRadius: "8px",
-      border: "1px solid #e5e7eb",
-      background: "#fff",
-      color: "#111827",
-      fontWeight: 600,
-      cursor: "pointer"
+      border: "none",
+      fontWeight: "600",
+      fontSize: "14px",
+      cursor: "pointer",
+      display: "flex",
+      alignItems: "center",
+      gap: "8px"
     }
   };
 
+  if (loading && !profile) {
+    return <div style={{ padding: "40px", textAlign: "center" }}><Loader2 className="animate-spin" style={{ margin: "auto" }} /></div>;
+  }
+
   return (
-    <div>
-      <div style={{ marginBottom: "24px" }}>
-        <h1 style={styles.heading}>My Profile</h1>
-      </div>
+    <div style={{ maxWidth: "1000px" }}>
+      <h1 style={styles.heading}>User Profile</h1>
 
-      {feedback && <div className={`feedback ${feedback.type}`} style={{ marginBottom: "14px" }}>{feedback.text}</div>}
-      {error && <div className="feedback error" style={{ marginBottom: "14px" }}>{error}</div>}
+      {feedback && (
+        <div style={{ 
+          padding: "12px 16px", 
+          borderRadius: "8px", 
+          marginBottom: "20px", 
+          background: feedback.type === 'success' ? '#ecfdf5' : '#fef2f2',
+          border: `1px solid ${feedback.type === 'success' ? '#10b981' : '#ef4444'}`,
+          color: feedback.type === 'success' ? '#065f46' : '#991b1b',
+          fontSize: "14px"
+        }}>
+          {feedback.text}
+        </div>
+      )}
 
-      <div style={{ display: "grid", gridTemplateColumns: "340px 1fr", gap: "24px" }}>
-        <div style={{ ...styles.card, padding: "32px", textAlign: "center" }}>
-          <div style={styles.avatar}>{initials}</div>
-          <h2 style={{ fontSize: "20px", fontWeight: 700, margin: "0 0 8px" }}>{profile?.name || "Loading..."}</h2>
-          <p style={{ color: "#6b7280", margin: "0 0 24px" }}>{roleLabel(profile?.role)}</p>
-
-          <div style={{ textAlign: "left", paddingTop: "24px", borderTop: "1px solid #e5e7eb", display: "grid", gap: "12px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "12px", fontSize: "14px" }}>
-              <Mail size={16} color="#6b7280" /> <span>{profile?.email || "-"}</span>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: "12px", fontSize: "14px" }}>
-              <Shield size={16} color="#6b7280" /> <span>{roleLabel(profile?.role)}</span>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: "12px", fontSize: "14px" }}>
-              <UserCircle2 size={16} color="#6b7280" /> <span>Login ID: {profile?.loginId || "-"}</span>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: "12px", fontSize: "14px" }}>
-              <CheckCircle2 size={16} color="#6b7280" /> <span>{profile?.isActive ? "Account Active" : "Account Disabled"}</span>
+      <div style={{ display: "grid", gridTemplateColumns: "300px 1fr", gap: "24px" }}>
+        {/* Sidebar */}
+        <div>
+          <div style={{ ...styles.card, padding: "32px", textAlign: "center" }}>
+            <div style={styles.avatar}>{initials}</div>
+            <h2 style={{ fontSize: "18px", fontWeight: 700, margin: "0 0 4px" }}>{profile?.name}</h2>
+            <p style={{ color: "#6b7280", margin: "0 0 20px", fontSize: "14px" }}>{roleLabel(profile?.role)}</p>
+            
+            <div style={{ textAlign: "left", paddingTop: "20px", borderTop: "1px solid #f3f4f6", display: "grid", gap: "12px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "13px" }}>
+                    <Mail size={14} color="#6b7280" /> <span>{profile?.email}</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "13px" }}>
+                    <Shield size={14} color="#6b7280" /> <span>Login ID: {profile?.loginId}</span>
+                </div>
             </div>
           </div>
         </div>
 
-        <div style={{ display: "grid", gap: "24px" }}>
+        {/* Content */}
+        <div>
           <div style={styles.card}>
-            <div style={{ padding: "20px 24px", borderBottom: "1px solid #e5e7eb", fontWeight: 600 }}>Profile Details</div>
-            <form onSubmit={handleProfileSubmit} style={{ padding: "24px", display: "grid", gap: "16px" }}>
-              <div className="field" style={{ gap: "8px" }}>
-                <label htmlFor="profile-name">Full Name</label>
-                <input id="profile-name" name="name" value={profileForm.name} onChange={onProfileChange} style={styles.input} disabled={loading} />
-              </div>
-              <div className="field" style={{ gap: "8px" }}>
-                <label htmlFor="profile-email">Email</label>
-                <input id="profile-email" name="email" type="email" value={profileForm.email} onChange={onProfileChange} style={styles.input} disabled={loading} />
-              </div>
-              <div className="field" style={{ gap: "8px" }}>
-                <label htmlFor="profile-login">Login ID</label>
-                <input id="profile-login" value={profile?.loginId || ""} style={{ ...styles.input, background: "#f9fafb" }} disabled />
-              </div>
-              <div>
-                <button type="submit" style={styles.button} disabled={savingProfile || loading}>
-                  {savingProfile ? "Saving..." : "Save Profile"}
-                </button>
-              </div>
-            </form>
+            <div style={styles.cardHeader}>Personal Information</div>
+            <div style={styles.cardBody}>
+              <form onSubmit={handleProfileSubmit}>
+                <div style={styles.inputGroup}>
+                  <label style={styles.label}>Full Name</label>
+                  <input 
+                    value={profileForm.name} 
+                    onChange={(e) => setProfileForm(p => ({ ...p, name: e.target.value }))} 
+                    style={styles.input} 
+                  />
+                </div>
+                <div style={styles.inputGroup}>
+                  <label style={styles.label}>Email Address</label>
+                  <input 
+                    type="email" 
+                    value={profileForm.email} 
+                    onChange={(e) => setProfileForm(p => ({ ...p, email: e.target.value }))} 
+                    style={styles.input} 
+                  />
+                </div>
+                <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                  <button type="submit" style={styles.btnPrimary} disabled={savingProfile}>
+                    <Save size={16} /> {savingProfile ? "Saving..." : "Save Changes"}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
 
           <div style={styles.card}>
-            <div style={{ padding: "20px 24px", borderBottom: "1px solid #e5e7eb", fontWeight: 600 }}>Security</div>
-            <form onSubmit={handlePasswordSubmit} style={{ padding: "24px", display: "grid", gap: "16px" }}>
-              <div className="field" style={{ gap: "8px" }}>
-                <label htmlFor="currentPassword">Current Password</label>
-                <input id="currentPassword" name="currentPassword" type="password" value={passwordForm.currentPassword} onChange={onPasswordChange} style={styles.input} />
-              </div>
-              <div className="field" style={{ gap: "8px" }}>
-                <label htmlFor="newPassword">New Password</label>
-                <input id="newPassword" name="newPassword" type="password" value={passwordForm.newPassword} onChange={onPasswordChange} style={styles.input} placeholder={passwordHint} />
-              </div>
-              <div className="field" style={{ gap: "8px" }}>
-                <label htmlFor="confirmPassword">Confirm New Password</label>
-                <input id="confirmPassword" name="confirmPassword" type="password" value={passwordForm.confirmPassword} onChange={onPasswordChange} style={styles.input} />
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
-                <button type="submit" style={styles.button} disabled={savingPassword}>
-                  <KeyRound size={16} style={{ marginRight: "8px", verticalAlign: "middle" }} />
-                  {savingPassword ? "Updating..." : "Change Password"}
-                </button>
-                <button
-                  type="button"
-                  style={styles.helperButton}
-                  onClick={() => setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" })}
-                >
-                  Clear
-                </button>
-              </div>
-            </form>
+            <div style={styles.cardHeader}>Security</div>
+            <div style={styles.cardBody}>
+              <form onSubmit={handlePasswordSubmit}>
+                <div style={styles.inputGroup}>
+                  <label style={styles.label}>Current Password</label>
+                  <input 
+                    type="password" 
+                    value={passwordForm.currentPassword} 
+                    onChange={(e) => setPasswordForm(p => ({ ...p, currentPassword: e.target.value }))} 
+                    style={styles.input} 
+                  />
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
+                   <div>
+                      <label style={styles.label}>New Password</label>
+                      <input 
+                        type="password" 
+                        value={passwordForm.newPassword} 
+                        onChange={(e) => setPasswordForm(p => ({ ...p, newPassword: e.target.value }))} 
+                        style={styles.input} 
+                        placeholder={passwordHint}
+                      />
+                   </div>
+                   <div>
+                      <label style={styles.label}>Confirm New Password</label>
+                      <input 
+                        type="password" 
+                        value={passwordForm.confirmPassword} 
+                        onChange={(e) => setPasswordForm(p => ({ ...p, confirmPassword: e.target.value }))} 
+                        style={styles.input} 
+                      />
+                   </div>
+                </div>
+                <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                  <button type="submit" style={styles.btnPrimary} disabled={savingPassword}>
+                    <KeyRound size={16} /> {savingPassword ? "Updating..." : "Update Password"}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       </div>

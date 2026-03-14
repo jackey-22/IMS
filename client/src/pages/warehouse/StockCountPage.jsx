@@ -28,7 +28,7 @@ export default function StockCountPage() {
   return (
     <div>
       <div style={commonStyles.titleSection}>
-        <h1 style={commonStyles.h1}>Invetory Stock Count</h1>
+        <h1 style={commonStyles.h1}>Stock Verification</h1>
         <div style={{ display: "flex", gap: "12px" }}>
             <button style={commonStyles.btnSecondary}><RefreshCw size={18} /> Reset</button>
             <button style={commonStyles.btnPrimary}><Save size={18} /> Submit Adjustments</button>
@@ -37,14 +37,14 @@ export default function StockCountPage() {
 
       <div style={commonStyles.alert}>
         <AlertTriangle size={20} color="#92400e" />
-        <p style={{ margin: 0, fontSize: "14px", color: "#92400e" }}>Adjustments will update inventory immediately.</p>
+        <p style={{ margin: 0, fontSize: "14px", color: "#92400e", fontWeight: "600" }}>Physical adjustments will update system stock levels immediately.</p>
       </div>
 
       <div style={commonStyles.card}>
         <table style={commonStyles.table}>
           <thead>
             <tr>
-              <th style={commonStyles.th}>Product</th>
+              <th style={commonStyles.th}>Product Details</th>
               <th style={commonStyles.th}>Location</th>
               <th style={commonStyles.th}>System Qty</th>
               <th style={commonStyles.th}>Counted Qty</th>
@@ -58,8 +58,8 @@ export default function StockCountPage() {
               return (
                 <tr key={item.id}>
                   <td style={commonStyles.td}>
-                    <div style={{ fontWeight: "600" }}>{item.product}</div>
-                    <div style={{ fontSize: "12px", color: "#6b7280" }}>{item.sku}</div>
+                    <div style={{ fontWeight: "700" }}>{item.product}</div>
+                    <div style={{ fontSize: "12px", color: "#6b7280" }}>SKU: {item.sku}</div>
                   </td>
                   <td style={commonStyles.td}>{item.location}</td>
                   <td style={commonStyles.td}>{item.systemQty}</td>

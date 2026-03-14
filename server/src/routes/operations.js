@@ -8,7 +8,8 @@ import { authenticate, requireRole } from "../middleware/auth.js";
 
 const router = Router();
 
-router.use(authenticate, requireRole("admin", "inventory_manager"));
+// Restricted to admin/inventory_manager by default, but we'll override for specific routes
+router.use(authenticate);
 
 function padRef(n) {
   return String(n).padStart(4, "0");
@@ -165,7 +166,7 @@ router.get("/receipts", async (req, res) => {
 });
 
 // POST /api/operations/receipts
-router.post("/receipts", async (req, res) => {
+router.post("/receipts", requireRole("admin", "inventory_manager"), async (req, res) => {
   try {
     const { productId, warehouseId, destinationLocationId, qty, partnerName, fromText, scheduleDate, status } = req.body;
 
@@ -200,7 +201,7 @@ router.post("/receipts", async (req, res) => {
 
     const doc = await InventoryDoc.create({
       type: "receipt",
-      status: status || "ready",
+      status: status || "waiting",
       documentNo,
       partnerName: partnerName || "",
       notes: fromText || "",
@@ -218,40 +219,6 @@ router.post("/receipts", async (req, res) => {
       ],
     });
 
-    // Upsert StockBalance — add qty
-    let balance = await StockBalance.findOne({
-      productId: product._id,
-      warehouseId: warehouse._id,
-      locationId: normalizedDestinationLocationId,
-    });
-
-    let balanceAfter;
-    if (balance) {
-      balance.qtyOnHand += quantity;
-      await balance.save();
-      balanceAfter = balance.qtyOnHand;
-    } else {
-      const created = await StockBalance.create({
-        productId: product._id,
-        warehouseId: warehouse._id,
-        locationId: normalizedDestinationLocationId,
-        qtyOnHand: quantity,
-        qtyReserved: 0,
-      });
-      balanceAfter = created.qtyOnHand;
-    }
-
-    await StockLedger.create({
-      productId: product._id,
-      warehouseId: warehouse._id,
-      locationId: normalizedDestinationLocationId,
-      documentId: doc._id,
-      type: "receipt",
-      qtyIn: quantity,
-      qtyOut: 0,
-      balanceAfter,
-    });
-
     return res.status(201).json({
       id: doc._id,
       reference: documentNo,
@@ -265,6 +232,76 @@ router.post("/receipts", async (req, res) => {
   } catch (error) {
     console.error("Create receipt failed", error);
     return res.status(500).json({ message: "Create receipt failed" });
+  }
+});
+
+// PUT /api/operations/receipts/:id/confirm — Warehouse staff confirms receipt
+router.put("/receipts/:id/confirm", requireRole("admin", "inventory_manager", "warehouse_staff"), async (req, res) => {
+  try {
+    const doc = await InventoryDoc.findById(req.params.id);
+    if (!doc) return res.status(404).json({ message: "Receipt not found" });
+    if (doc.type !== "receipt") return res.status(400).json({ message: "Invalid document type" });
+    if (doc.status === "done") return res.status(400).json({ message: "Receipt already confirmed" });
+
+    const line = doc.lines[0];
+    if (!line) return res.status(400).json({ message: "Receipt has no items" });
+
+    const product = await Product.findById(line.productId);
+    const warehouse = await Warehouse.findById(doc.warehouseId);
+
+    if (!product || !warehouse) {
+      return res.status(404).json({ message: "Product or Warehouse not found" });
+    }
+
+    const [balance, productBalanceCount] = await Promise.all([
+      StockBalance.findOne({
+        productId: product._id,
+        warehouseId: warehouse._id,
+        locationId: line.destinationLocationId || null,
+      }),
+      StockBalance.countDocuments({ productId: product._id }),
+    ]);
+
+    let balanceAfter;
+    if (balance) {
+      balance.qtyOnHand += line.qty;
+      await balance.save();
+      balanceAfter = balance.qtyOnHand;
+    } else {
+      // If no balance exists, we just create one. 
+      // We don't seed initialStock here because it's usually handled during the first ever stock entry or product creation.
+      const created = await StockBalance.create({
+        productId: product._id,
+        warehouseId: warehouse._id,
+        locationId: line.destinationLocationId || null,
+        qtyOnHand: line.qty,
+        qtyReserved: 0,
+      });
+      balanceAfter = created.qtyOnHand;
+    }
+
+    await StockLedger.create({
+      productId: product._id,
+      warehouseId: warehouse._id,
+      locationId: line.destinationLocationId || null,
+      documentId: doc._id,
+      type: "receipt",
+      qtyIn: line.qty,
+      qtyOut: 0,
+      balanceAfter,
+    });
+
+    doc.status = "done";
+    doc.validatedBy = req.user._id;
+    doc.validatedAt = new Date();
+    await doc.save();
+    
+    await syncProductOnHand(product._id);
+
+    return res.json({ message: "Receipt confirmed, stock updated", status: doc.status });
+  } catch (error) {
+    console.error("Confirm receipt failed", error);
+    return res.status(500).json({ message: "Confirm receipt failed" });
   }
 });
 
@@ -317,7 +354,7 @@ router.get("/deliveries", async (req, res) => {
 });
 
 // POST /api/operations/deliveries
-router.post("/deliveries", async (req, res) => {
+router.post("/deliveries", requireRole("admin", "inventory_manager"), async (req, res) => {
   try {
     const { productId, warehouseId, qty, partnerName, toText, scheduleDate, status } = req.body;
 
@@ -379,33 +416,6 @@ router.post("/deliveries", async (req, res) => {
       ],
     });
 
-    let balanceAfter;
-    if (balance) {
-      balance.qtyOnHand -= quantity;
-      await balance.save();
-      balanceAfter = balance.qtyOnHand;
-    } else {
-      const created = await StockBalance.create({
-        productId: product._id,
-        warehouseId: warehouse._id,
-        locationId: null,
-        qtyOnHand: seededOnHand - quantity,
-        qtyReserved: 0,
-      });
-      balanceAfter = created.qtyOnHand;
-    }
-
-    await StockLedger.create({
-      productId: product._id,
-      warehouseId: warehouse._id,
-      locationId: null,
-      documentId: doc._id,
-      type: "delivery",
-      qtyIn: 0,
-      qtyOut: quantity,
-      balanceAfter,
-    });
-
     return res.status(201).json({
       id: doc._id,
       reference: documentNo,
@@ -419,6 +429,82 @@ router.post("/deliveries", async (req, res) => {
   } catch (error) {
     console.error("Create delivery failed", error);
     return res.status(500).json({ message: "Create delivery failed" });
+  }
+});
+
+// PUT /api/operations/deliveries/:id/confirm — Warehouse staff confirms dispatch
+router.put("/deliveries/:id/confirm", requireRole("admin", "inventory_manager", "warehouse_staff"), async (req, res) => {
+  try {
+    const doc = await InventoryDoc.findById(req.params.id);
+    if (!doc) return res.status(404).json({ message: "Delivery order not found" });
+    if (doc.type !== "delivery") return res.status(400).json({ message: "Invalid document type" });
+    if (doc.status === "done") return res.status(400).json({ message: "Delivery already dispatched" });
+
+    const line = doc.lines[0];
+    if (!line) return res.status(400).json({ message: "Delivery has no items" });
+
+    const product = await Product.findById(line.productId);
+    const warehouse = await Warehouse.findById(doc.warehouseId);
+
+    if (!product || !warehouse) {
+      return res.status(404).json({ message: "Product or Warehouse not found" });
+    }
+
+    const [balance, productBalanceCount] = await Promise.all([
+      StockBalance.findOne({
+        productId: product._id,
+        warehouseId: warehouse._id,
+        locationId: line.sourceLocationId || null,
+      }),
+      StockBalance.countDocuments({ productId: product._id }),
+    ]);
+
+    const available = balance ? balance.qtyOnHand : 0;
+
+    if (line.qty > available) {
+      return res.status(400).json({
+        message: `Stock level dropped before confirmation. Available: ${available}, Required: ${line.qty}.`,
+      });
+    }
+
+    let balanceAfter;
+    if (balance) {
+      balance.qtyOnHand -= line.qty;
+      await balance.save();
+      balanceAfter = balance.qtyOnHand;
+    } else {
+      const created = await StockBalance.create({
+        productId: product._id,
+        warehouseId: warehouse._id,
+        locationId: line.sourceLocationId || null,
+        qtyOnHand: -line.qty,
+        qtyReserved: 0,
+      });
+      balanceAfter = created.qtyOnHand;
+    }
+
+    await StockLedger.create({
+      productId: product._id,
+      warehouseId: warehouse._id,
+      locationId: line.sourceLocationId || null,
+      documentId: doc._id,
+      type: "delivery",
+      qtyIn: 0,
+      qtyOut: line.qty,
+      balanceAfter,
+    });
+
+    doc.status = "done";
+    doc.validatedBy = req.user._id;
+    doc.validatedAt = new Date();
+    await doc.save();
+    
+    await syncProductOnHand(product._id);
+
+    return res.json({ message: "Delivery dispatched, stock reduced", status: doc.status });
+  } catch (error) {
+    console.error("Confirm delivery failed", error);
+    return res.status(500).json({ message: "Confirm delivery failed" });
   }
 });
 
@@ -504,7 +590,7 @@ router.get("/transfers", async (req, res) => {
 });
 
 // POST /api/operations/transfers
-router.post("/transfers", async (req, res) => {
+router.post("/transfers", requireRole("admin", "inventory_manager"), async (req, res) => {
   try {
     const {
       productId,

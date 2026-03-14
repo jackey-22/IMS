@@ -1,8 +1,11 @@
 import { Router } from "express";
 import Product from "../models/Product.js";
 import StockBalance from "../models/StockBalance.js";
+import { authenticate, requireRole } from "../middleware/auth.js";
 
 const router = Router();
+
+router.use(authenticate);
 
 async function getOnHandMap(productIds) {
   if (!productIds.length) {
@@ -32,7 +35,7 @@ async function getOnHandMap(productIds) {
   );
 }
 
-router.post("/", async (req, res) => {
+router.post("/", requireRole("admin", "inventory_manager"), async (req, res) => {
   try {
     const {
       name,
@@ -137,7 +140,7 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-router.put("/:id", async (req, res) => {
+router.put("/:id", requireRole("admin", "inventory_manager"), async (req, res) => {
   try {
     const updates = { ...req.body };
     if (updates.name) {
@@ -180,7 +183,7 @@ router.put("/:id", async (req, res) => {
   }
 });
 
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", requireRole("admin", "inventory_manager"), async (req, res) => {
   try {
     const product = await Product.findByIdAndDelete(req.params.id);
     if (!product) {

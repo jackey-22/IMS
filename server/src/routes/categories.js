@@ -1,9 +1,12 @@
 import { Router } from "express";
 import Category from "../models/Category.js";
+import { authenticate, requireRole } from "../middleware/auth.js";
 
 const router = Router();
 
-router.post("/", async (req, res) => {
+router.use(authenticate);
+
+router.post("/", requireRole("admin", "inventory_manager"), async (req, res) => {
   try {
     const { name, parentId } = req.body;
     if (!name) {
@@ -46,7 +49,7 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-router.put("/:id", async (req, res) => {
+router.put("/:id", requireRole("admin", "inventory_manager"), async (req, res) => {
   try {
     const updates = req.body;
     if (updates.name) {
@@ -69,7 +72,7 @@ router.put("/:id", async (req, res) => {
   }
 });
 
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", requireRole("admin", "inventory_manager"), async (req, res) => {
   try {
     const category = await Category.findByIdAndDelete(req.params.id);
     if (!category) {

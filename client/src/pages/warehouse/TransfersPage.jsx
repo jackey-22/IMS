@@ -1,4 +1,4 @@
-import { ArrowLeftRight, Search, Filter, CheckCircle, PlusCircle } from "lucide-react";
+import { ArrowLeftRight, Search, Filter, PlusCircle, CheckCircle } from "lucide-react";
 
 export default function TransfersPage() {
   const transfers = [
@@ -16,7 +16,7 @@ export default function TransfersPage() {
     th: { textAlign: "left", padding: "16px 24px", background: "#f9fafb", color: "#6b7280", fontWeight: "600", fontSize: "13px", textTransform: "uppercase" },
     td: { padding: "16px 24px", borderBottom: "1px solid #e5e7eb", fontSize: "14px", color: "#111827" },
     statusBadge: (bg, color) => ({ padding: "4px 10px", borderRadius: "999px", fontSize: "12px", fontWeight: "600", background: bg, color: color }),
-    btnAction: { background: "white", color: "#111827", border: "1px solid #e5e7eb", padding: "6px 12px", borderRadius: "8px", fontSize: "12px", fontWeight: "600", cursor: "pointer" }
+    btnAction: { background: "white", color: "#111827", border: "1px solid #e5e7eb", padding: "6px 12px", borderRadius: "8px", fontSize: "12px", fontWeight: "600", cursor: "pointer", display: "flex", alignItems: "center", gap: "6px" }
   };
 
   return (
@@ -29,9 +29,9 @@ export default function TransfersPage() {
       <div style={{ display: "flex", gap: "16px", marginBottom: "20px" }}>
         <div style={{ flex: 1, display: "flex", background: "white", padding: "8px 16px", borderRadius: "8px", border: "1px solid #e5e7eb", alignItems: "center", gap: "8px" }}>
           <Search size={18} color="#6b7280" />
-          <input placeholder="Search route..." style={{ border: "none", outline: "none", width: "100%", fontSize: "14px" }} />
+          <input placeholder="Search route or product..." style={{ border: "none", outline: "none", width: "100%", fontSize: "14px" }} />
         </div>
-        <button style={{ ...commonStyles.btnAction, height: "40px" }}><Filter size={18} /> Filters</button>
+        <button style={commonStyles.btnAction}><Filter size={18} /> Filters</button>
       </div>
 
       <div style={commonStyles.card}>
@@ -49,7 +49,7 @@ export default function TransfersPage() {
           <tbody>
             {transfers.map((t) => (
               <tr key={t.id}>
-                <td style={{ ...commonStyles.td, fontWeight: "600" }}>{t.id}</td>
+                <td style={{ ...commonStyles.td, fontWeight: "600", color: "#2563eb" }}>{t.id}</td>
                 <td style={commonStyles.td}>
                   <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                     <span>{t.from}</span>
@@ -58,17 +58,21 @@ export default function TransfersPage() {
                   </div>
                 </td>
                 <td style={commonStyles.td}>{t.product}</td>
-                <td style={commonStyles.td}>{t.quantity}</td>
+                <td style={{ ...commonStyles.td, fontWeight: "700" }}>{t.quantity}</td>
                 <td style={commonStyles.td}>
                   <span style={commonStyles.statusBadge(t.status === 'Done' ? '#d1fae5' : t.status === 'Scheduled' ? '#ede9fe' : '#e0f2fe', t.status === 'Done' ? '#065f46' : t.status === 'Scheduled' ? '#5b21b6' : '#075985')}>
                     {t.status}
                   </span>
                 </td>
                 <td style={commonStyles.td}>
-                   {t.status !== 'Done' && (
+                   {t.status !== 'Done' ? (
                      <button style={{ ...commonStyles.btnPrimary, padding: "4px 12px", fontSize: "12px" }}>
                        Confirm
                      </button>
+                   ) : (
+                     <div style={{ color: "#10b981", display: "flex", alignItems: "center", gap: "4px", fontSize: "13px", fontWeight: "600" }}>
+                        <CheckCircle size={16} /> Completed
+                     </div>
                    )}
                 </td>
               </tr>

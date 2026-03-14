@@ -1,178 +1,182 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { 
-  Plus, 
   Search, 
-  Filter, 
-  ArrowLeft,
   CheckCircle,
+  Loader2,
+  PackagePlus,
+  RefreshCw,
+  X,
   AlertCircle
 } from "lucide-react";
+import { useAuth } from "../../context/AuthContext.jsx";
+import { listReceipts, confirmReceiptApi } from "../../services/operationsApi.js";
 
 export default function ReceiptsPage() {
-  const [view, setView] = useState("list");
-  const [selectedReceipt, setSelectedReceipt] = useState(null);
-  const [receivedQty, setReceivedQty] = useState("");
+  const { session } = useAuth();
+  const token = session?.token;
+
+  const [receipts, setReceipts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [confirming, setConfirming] = useState(null);
   const [search, setSearch] = useState("");
+  const [feedback, setFeedback] = useState(null);
+  
+  // Modal state
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedReceipt, setSelectedReceipt] = useState(null);
 
-  const receipts = [
-    { id: "REC-001", supplier: "Tata Steel", product: "Steel Rods", expected: 100, received: 0, status: "Waiting", date: "2024-03-14" },
-    { id: "REC-002", supplier: "Global Logistics", product: "Engines", expected: 10, received: 5, status: "In Progress", date: "2024-03-14" },
-    { id: "REC-003", supplier: "Office Supplies Inc", product: "Folders", expected: 500, received: 500, status: "Done", date: "2024-03-13" },
-  ];
-
-  const handleOpenReceipt = (receipt) => {
-    setSelectedReceipt(receipt);
-    setReceivedQty(receipt.received.toString());
-    setView("details");
+  const fetchReceipts = async () => {
+    try {
+      setLoading(true);
+      const data = await listReceipts(token);
+      setReceipts(data);
+    } catch (err) {
+      console.error(err);
+      setFeedback({ type: "error", message: err.message || "Failed to load receipts" });
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const filteredReceipts = receipts.filter((receipt) => {
-    const query = search.trim().toLowerCase();
-    if (!query) return true;
+  useEffect(() => {
+    if (token) {
+      fetchReceipts();
+    }
+  }, [token]);
+
+  const openModal = (receipt) => {
+    setSelectedReceipt(receipt);
+    setModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setModalOpen(false);
+    setSelectedReceipt(null);
+  };
+
+  const handleConfirm = async () => {
+    if (!selectedReceipt) return;
+    
+    try {
+      setConfirming(selectedReceipt.id);
+      await confirmReceiptApi(token, selectedReceipt.id);
+      setFeedback({ type: "success", message: `Receipt ${selectedReceipt.reference} confirmed successfully` });
+      closeModal();
+      fetchReceipts();
+    } catch (err) {
+      setFeedback({ type: "error", message: err.message || "Confirmation failed" });
+    } finally {
+      setConfirming(null);
+      setTimeout(() => setFeedback(null), 3000);
+    }
+  };
+
+  const filteredReceipts = receipts.filter((r) => {
+    const q = search.toLowerCase();
     return (
-      receipt.id.toLowerCase().includes(query) ||
-      receipt.supplier.toLowerCase().includes(query) ||
-      receipt.product.toLowerCase().includes(query)
+      r.reference.toLowerCase().includes(q) ||
+      r.productName.toLowerCase().includes(q) ||
+      (r.from && r.from.toLowerCase().includes(q))
     );
   });
-
-  const kanbanColumns = ["Waiting", "In Progress", "Done"];
-  const groupedReceipts = kanbanColumns.reduce((acc, status) => {
-    acc[status] = filteredReceipts.filter((receipt) => receipt.status === status);
-    return acc;
-  }, {});
 
   const commonStyles = {
     titleSection: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "24px" },
     h1: { fontSize: "24px", fontWeight: "700", color: "#111827", margin: 0 },
-    btnPrimary: { background: "#3b82f6", color: "white", border: "none", padding: "8px 16px", borderRadius: "8px", fontWeight: "600", fontSize: "14px", cursor: "pointer", display: "flex", alignItems: "center", gap: "8px" },
+    btnPrimary: { background: "#3b82f6", color: "white", border: "none", padding: "10px 20px", borderRadius: "8px", fontWeight: "600", fontSize: "14px", cursor: "pointer", display: "flex", alignItems: "center", gap: "8px" },
     btnSecondary: { background: "white", color: "#111827", border: "1px solid #e5e7eb", padding: "8px 16px", borderRadius: "8px", fontWeight: "600", fontSize: "14px", cursor: "pointer", display: "flex", alignItems: "center", gap: "8px" },
     card: { background: "#ffffff", borderRadius: "12px", border: "1px solid #e5e7eb", boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)", overflow: "hidden" },
     table: { width: "100%", borderCollapse: "collapse" },
     th: { textAlign: "left", padding: "16px 24px", background: "#f9fafb", color: "#6b7280", fontWeight: "600", fontSize: "13px", textTransform: "uppercase" },
     td: { padding: "16px 24px", borderBottom: "1px solid #e5e7eb", fontSize: "14px", color: "#111827" },
-    statusBadge: (bg, color) => ({ padding: "4px 10px", borderRadius: "999px", fontSize: "12px", fontWeight: "600", background: bg, color: color }),
-    input: { padding: "8px 12px", borderRadius: "6px", border: "1px solid #e5e7eb", outline: "none" }
+    statusBadge: (status) => {
+      const isDone = status === 'done';
+      return {
+        padding: "4px 10px",
+        borderRadius: "999px",
+        fontSize: "12px",
+        fontWeight: "600",
+        background: isDone ? "#d1fae5" : "#fff7ed",
+        color: isDone ? "#065f46" : "#9a3412",
+        textTransform: "capitalize"
+      };
+    },
+    overlay: {
+      position: "fixed",
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: "rgba(0, 0, 0, 0.5)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      zIndex: 1000
+    },
+    modal: {
+      backgroundColor: "#ffffff",
+      borderRadius: "16px",
+      width: "480px",
+      padding: "32px",
+      boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1)",
+      position: "relative"
+    }
   };
-
-  if (view === "details") {
-    return (
-      <div>
-        <div style={commonStyles.titleSection}>
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-            <button onClick={() => setView("list")} style={{ ...commonStyles.btnSecondary, padding: "8px" }}>
-              <ArrowLeft size={20} />
-            </button>
-            <h1 style={commonStyles.h1}>Receipt {selectedReceipt.id}</h1>
-          </div>
-          <button onClick={() => setView("list")} style={commonStyles.btnPrimary}>
-            <CheckCircle size={18} />
-            <span>Validate Receipt</span>
-          </button>
-        </div>
-
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: "24px" }}>
-          <div style={commonStyles.card}>
-            <div style={{ padding: "20px 24px", borderBottom: "1px solid #e5e7eb" }}>
-              <h2 style={{ fontSize: "18px", fontWeight: "600", margin: 0 }}>Verify Items</h2>
-            </div>
-            <table>
-              <thead>
-                <tr>
-                  <th style={commonStyles.th}>Product</th>
-                  <th style={commonStyles.th}>Expected</th>
-                  <th style={commonStyles.th}>Received</th>
-                  <th style={commonStyles.th}>Current Count</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td style={{ ...commonStyles.td, fontWeight: "600" }}>{selectedReceipt.product}</td>
-                  <td style={commonStyles.td}>{selectedReceipt.expected}</td>
-                  <td style={commonStyles.td}>{selectedReceipt.received}</td>
-                  <td style={commonStyles.td}>
-                    <input 
-                      type="number" 
-                      value={receivedQty} 
-                      onChange={(e) => setReceivedQty(e.target.value)}
-                      style={{ ...commonStyles.input, width: "100px" }}
-                    />
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          <div style={{ ...commonStyles.card, padding: "24px" }}>
-            <h3 style={{ margin: "0 0 16px 0", fontSize: "16px" }}>Receipt Info</h3>
-            <div style={{ display: "grid", gap: "16px" }}>
-              <div>
-                <label style={{ fontSize: "12px", color: "#6b7280", display: "block" }}>Supplier</label>
-                <div style={{ fontWeight: "600" }}>{selectedReceipt.supplier}</div>
-              </div>
-              <div style={{ padding: "12px", background: "#fffbeb", border: "1px solid #fef3c7", borderRadius: "8px", display: "flex", gap: "10px" }}>
-                <AlertCircle size={20} color="#92400e" />
-                <p style={{ margin: 0, fontSize: "13px", color: "#92400e" }}>Double-check physical items.</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div>
       <div style={commonStyles.titleSection}>
-        <h1 style={commonStyles.h1}>Receipts from Suppliers</h1>
-        <button style={commonStyles.btnPrimary}><Plus size={18} /> New Receipt</button>
+        <div>
+          <h1 style={commonStyles.h1}>Warehouse Receipts</h1>
+          <p style={{ color: "#6b7280", fontSize: "14px", margin: "4px 0 0 0" }}>Process incoming goods against manager orders.</p>
+        </div>
       </div>
 
-      <div style={{ display: "flex", gap: "16px", marginBottom: "20px", flexWrap: "wrap" }}>
-        <div style={{ flex: 1, display: "flex", background: "white", padding: "8px 16px", borderRadius: "8px", border: "1px solid #e5e7eb", alignItems: "center", gap: "8px", minWidth: "240px" }}>
+      {feedback && (
+        <div style={{ 
+          padding: "12px 16px", 
+          borderRadius: "8px", 
+          marginBottom: "20px",
+          background: feedback.type === 'success' ? '#ecfdf5' : '#fef2f2',
+          border: `1px solid ${feedback.type === 'success' ? '#10b981' : '#ef4444'}`,
+          color: feedback.type === 'success' ? '#065f46' : '#991b1b',
+          fontSize: "14px",
+          display: "flex",
+          alignItems: "center",
+          gap: "8px"
+        }}>
+          {feedback.type === 'success' ? <CheckCircle size={18} /> : <AlertCircle size={18} />}
+          {feedback.message}
+        </div>
+      )}
+
+      <div style={{ display: "flex", gap: "16px", marginBottom: "20px" }}>
+        <div style={{ flex: 1, display: "flex", background: "white", padding: "8px 16px", borderRadius: "8px", border: "1px solid #e5e7eb", alignItems: "center", gap: "8px" }}>
           <Search size={18} color="#6b7280" />
           <input
-            placeholder="Search..."
+            placeholder="Search by ID, Product or Source..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             style={{ border: "none", outline: "none", width: "100%", fontSize: "14px" }}
           />
         </div>
-        <button style={commonStyles.btnSecondary}><Filter size={18} /> Filters</button>
-        <div style={{ display: "flex", gap: "8px" }}>
-          <button
-            style={{
-              ...commonStyles.btnSecondary,
-              background: view === "list" ? "#eff6ff" : "white",
-              borderColor: view === "list" ? "#bfdbfe" : "#e5e7eb",
-              color: "#1e3a8a"
-            }}
-            onClick={() => setView("list")}
-          >
-            List
-          </button>
-          <button
-            style={{
-              ...commonStyles.btnSecondary,
-              background: view === "kanban" ? "#eff6ff" : "white",
-              borderColor: view === "kanban" ? "#bfdbfe" : "#e5e7eb",
-              color: "#1e3a8a"
-            }}
-            onClick={() => setView("kanban")}
-          >
-            Kanban
-          </button>
-        </div>
+        <button onClick={fetchReceipts} style={commonStyles.btnSecondary}><RefreshCw size={18} /> Refresh</button>
       </div>
-      {view === "list" ? (
-        <div style={commonStyles.card}>
+
+      <div style={commonStyles.card}>
+        {loading && !receipts.length ? (
+          <div style={{ padding: "40px", textAlign: "center", color: "#6b7280" }}>
+            <Loader2 className="animate-spin" style={{ margin: "0 auto 12px auto" }} />
+            Loading receipts...
+          </div>
+        ) : (
           <table style={commonStyles.table}>
             <thead>
               <tr>
-                <th style={commonStyles.th}>ID</th>
-                <th style={commonStyles.th}>Supplier</th>
-                <th style={commonStyles.th}>Product</th>
-                <th style={commonStyles.th}>Expected</th>
+                <th style={commonStyles.th}>Receipt No</th>
+                <th style={commonStyles.th}>From → To</th>
+                <th style={commonStyles.th}>Product Details</th>
+                <th style={commonStyles.th}>Quantity</th>
                 <th style={commonStyles.th}>Status</th>
                 <th style={commonStyles.th}>Action</th>
               </tr>
@@ -180,49 +184,113 @@ export default function ReceiptsPage() {
             <tbody>
               {filteredReceipts.map((r) => (
                 <tr key={r.id}>
-                  <td style={{ ...commonStyles.td, fontWeight: "600" }}>{r.id}</td>
-                  <td style={commonStyles.td}>{r.supplier}</td>
-                  <td style={commonStyles.td}>{r.product}</td>
-                  <td style={commonStyles.td}>{r.expected}</td>
+                  <td style={{ ...commonStyles.td, fontWeight: "600", color: "#2563eb" }}>{r.reference}</td>
                   <td style={commonStyles.td}>
-                    <span style={commonStyles.statusBadge(r.status === 'Done' ? '#d1fae5' : '#e0f2fe', r.status === 'Done' ? '#065f46' : '#075985')}>
+                    <div style={{ fontSize: "13px" }}>
+                      <span style={{ color: "#6b7280" }}>From:</span> {r.from}
+                    </div>
+                    <div style={{ fontSize: "13px", marginTop: "4px" }}>
+                      <span style={{ color: "#6b7280" }}>To:</span> {r.to}
+                    </div>
+                  </td>
+                  <td style={commonStyles.td}>{r.productName}</td>
+                  <td style={{ ...commonStyles.td, fontWeight: "700" }}>{r.quantity}</td>
+                  <td style={commonStyles.td}>
+                    <span style={commonStyles.statusBadge(r.status)}>
                       {r.status}
                     </span>
                   </td>
                   <td style={commonStyles.td}>
-                    <button onClick={() => handleOpenReceipt(r)} style={{ ...commonStyles.btnSecondary, padding: "4px 12px", fontSize: "12px" }}>Open</button>
+                    {r.status === 'done' ? (
+                      <div style={{ color: "#10b981", display: "flex", alignItems: "center", gap: "4px", fontSize: "13px", fontWeight: "600" }}>
+                        <CheckCircle size={16} /> Confirmed
+                      </div>
+                    ) : (
+                      <button 
+                        onClick={() => openModal(r)} 
+                        style={{ ...commonStyles.btnPrimary, padding: "6px 14px", fontSize: "13px" }}
+                      >
+                        <PackagePlus size={16} /> Confirm Receipt
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
+              {filteredReceipts.length === 0 && !loading && (
+                <tr>
+                  <td colSpan="6" style={{ ...commonStyles.td, textAlign: "center", padding: "40px", color: "#9ca3af" }}>
+                    No pending receipts found.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
-        </div>
-      ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "16px" }}>
-          {kanbanColumns.map((status) => (
-            <div key={status} style={{ background: "#ffffff", borderRadius: "12px", border: "1px solid #e5e7eb", padding: "16px" }}>
-              <div style={{ fontWeight: "700", marginBottom: "12px", color: "#111827" }}>{status}</div>
-              <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                {groupedReceipts[status].map((receipt) => (
-                  <div key={receipt.id} style={{ border: "1px solid #e5e7eb", borderRadius: "10px", padding: "12px" }}>
-                    <div style={{ fontWeight: "600", marginBottom: "6px" }}>{receipt.id}</div>
-                    <div style={{ fontSize: "13px", color: "#6b7280" }}>{receipt.supplier}</div>
-                    <div style={{ fontSize: "13px", color: "#111827" }}>{receipt.product}</div>
-                    <div style={{ fontSize: "12px", color: "#6b7280", marginTop: "6px" }}>Expected: {receipt.expected}</div>
-                    <button
-                      onClick={() => handleOpenReceipt(receipt)}
-                      style={{ ...commonStyles.btnSecondary, padding: "4px 10px", fontSize: "12px", marginTop: "10px" }}
-                    >
-                      Open
-                    </button>
-                  </div>
-                ))}
-                {groupedReceipts[status].length === 0 && (
-                  <div style={{ fontSize: "12px", color: "#9ca3af" }}>No receipts</div>
-                )}
+        )}
+      </div>
+
+      {/* Confirmation Modal */}
+      {modalOpen && selectedReceipt && (
+        <div style={commonStyles.overlay} onClick={closeModal}>
+          <div style={commonStyles.modal} onClick={e => e.stopPropagation()}>
+            <button 
+              onClick={closeModal} 
+              style={{ position: "absolute", top: "20px", right: "20px", border: "none", background: "none", cursor: "pointer", color: "#9ca3af" }}
+            >
+              <X size={20} />
+            </button>
+            
+            <div style={{ textAlign: "center", marginBottom: "24px" }}>
+              <div style={{ 
+                width: "64px", 
+                height: "64px", 
+                backgroundColor: "#eff6ff", 
+                borderRadius: "50%", 
+                display: "flex", 
+                alignItems: "center", 
+                justifyContent: "center", 
+                margin: "0 auto 16px",
+                color: "#3b82f6"
+              }}>
+                <PackagePlus size={32} />
               </div>
+              <h2 style={{ fontSize: "20px", fontWeight: "700", color: "#111827", margin: "0 0 8px" }}>Confirm Receipt</h2>
+              <p style={{ color: "#6b7280", fontSize: "14px", lineHeight: "1.5" }}>
+                You are about to confirm the arrival of <strong>{selectedReceipt.quantity} units</strong> of <strong>{selectedReceipt.productName}</strong>. 
+                This will automatically update the system stock.
+              </p>
             </div>
-          ))}
+
+            <div style={{ backgroundColor: "#f9fafb", borderRadius: "12px", padding: "16px", marginBottom: "24px" }}>
+               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
+                 <span style={{ fontSize: "13px", color: "#6b7280" }}>Reference</span>
+                 <span style={{ fontSize: "13px", fontWeight: "600", color: "#111827" }}>{selectedReceipt.reference}</span>
+               </div>
+               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
+                 <span style={{ fontSize: "13px", color: "#6b7280" }}>Source</span>
+                 <span style={{ fontSize: "13px", fontWeight: "600", color: "#111827" }}>{selectedReceipt.from}</span>
+               </div>
+               <div style={{ display: "flex", justifyContent: "space-between" }}>
+                 <span style={{ fontSize: "13px", color: "#6b7280" }}>Destination</span>
+                 <span style={{ fontSize: "13px", fontWeight: "600", color: "#111827" }}>{selectedReceipt.to}</span>
+               </div>
+            </div>
+
+            <div style={{ display: "flex", gap: "12px" }}>
+              <button 
+                onClick={closeModal} 
+                style={{ ...commonStyles.btnSecondary, flex: 1, justifyContent: "center" }}
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleConfirm} 
+                disabled={confirming}
+                style={{ ...commonStyles.btnPrimary, flex: 1, justifyContent: "center" }}
+              >
+                {confirming ? "Processing..." : "Confirm & Update Stock"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

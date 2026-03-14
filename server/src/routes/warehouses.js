@@ -4,7 +4,8 @@ import { authenticate, requireRole } from "../middleware/auth.js";
 
 const router = Router();
 
-router.use(authenticate, requireRole("admin", "inventory_manager"));
+// Basic browsing allowed for all staff, management restricted
+router.use(authenticate);
 
 const normalizeLocationPayload = (location) => ({
   name: String(location?.name || "").trim(),
@@ -119,7 +120,7 @@ const collectDescendantCodes = (locations, rootCode) => {
   return descendants;
 };
 
-router.post("/", async (req, res) => {
+router.post("/", requireRole("admin", "inventory_manager"), async (req, res) => {
   try {
     const { name, code, address, isActive, locations } = req.body;
 
@@ -189,7 +190,7 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-router.put("/:id", async (req, res) => {
+router.put("/:id", requireRole("admin", "inventory_manager"), async (req, res) => {
   try {
     const updates = req.body;
     if (updates.name) {
@@ -226,7 +227,7 @@ router.put("/:id", async (req, res) => {
   }
 });
 
-router.post("/:id/locations", async (req, res) => {
+router.post("/:id/locations", requireRole("admin", "inventory_manager"), async (req, res) => {
   try {
     const { name, code, type, parentCode, isActive } = req.body;
 
@@ -269,7 +270,7 @@ router.post("/:id/locations", async (req, res) => {
   }
 });
 
-router.put("/:id/locations/:locationId", async (req, res) => {
+router.put("/:id/locations/:locationId", requireRole("admin", "inventory_manager"), async (req, res) => {
   try {
     const warehouse = await Warehouse.findById(req.params.id);
     if (!warehouse) {
@@ -346,7 +347,7 @@ router.put("/:id/locations/:locationId", async (req, res) => {
   }
 });
 
-router.delete("/:id/locations/:locationId", async (req, res) => {
+router.delete("/:id/locations/:locationId", requireRole("admin", "inventory_manager"), async (req, res) => {
   try {
     const warehouse = await Warehouse.findById(req.params.id);
     if (!warehouse) {
@@ -371,7 +372,7 @@ router.delete("/:id/locations/:locationId", async (req, res) => {
   }
 });
 
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", requireRole("admin", "inventory_manager"), async (req, res) => {
   try {
     const warehouse = await Warehouse.findByIdAndDelete(req.params.id);
     if (!warehouse) {

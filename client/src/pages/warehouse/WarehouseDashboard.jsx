@@ -1,12 +1,18 @@
-import { 
-  ArrowDownCircle, 
-  ArrowUpCircle, 
-  ArrowLeftRight, 
+import {
+  ArrowDownCircle,
+  ArrowUpCircle,
+  ArrowLeftRight,
   Calendar,
-  MoreVertical
+  MoreVertical,
+  PlusCircle,
+  ClipboardCheck
 } from "lucide-react";
+import { Link } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext.jsx";
 
 export default function WarehouseDashboard() {
+  const { session } = useAuth();
+  const displayName = session?.user?.name || "Warehouse Team";
   const kpis = [
     { label: "Pending Receipts", value: "3 Receipts Waiting", icon: ArrowDownCircle, color: "#3b82f6", bg: "#eff6ff" },
     { label: "Pending Deliveries", value: "2 Deliveries Pending", icon: ArrowUpCircle, color: "#10b981", bg: "#ecfdf5" },
@@ -18,6 +24,13 @@ export default function WarehouseDashboard() {
     { type: "Delivery", product: "Office Chairs", quantity: 20, status: "Waiting", date: "2024-03-14", id: "DEL-042" },
     { type: "Transfer", product: "Power Drills", quantity: 30, status: "Scheduled", date: "2024-03-14", id: "TRA-015" },
     { type: "Receipt", product: "Brake Pads", quantity: 500, status: "Done", date: "2024-03-13", id: "REC-002" },
+  ];
+
+  const quickActions = [
+    { label: "New Receipt", to: "/warehouse/receipts", icon: ArrowDownCircle },
+    { label: "New Delivery", to: "/warehouse/deliveries", icon: ArrowUpCircle },
+    { label: "Plan Transfer", to: "/warehouse/transfers", icon: ArrowLeftRight },
+    { label: "Stock Count", to: "/warehouse/stock-count", icon: ClipboardCheck }
   ];
 
   const getStatusStyle = (status) => {
@@ -50,6 +63,20 @@ export default function WarehouseDashboard() {
       display: "flex",
       alignItems: "center",
       gap: "8px"
+    },
+    btnPrimary: {
+      background: "#111827",
+      color: "white",
+      border: "1px solid #111827",
+      padding: "8px 16px",
+      borderRadius: "8px",
+      fontWeight: "600",
+      fontSize: "14px",
+      cursor: "pointer",
+      display: "flex",
+      alignItems: "center",
+      gap: "8px",
+      textDecoration: "none"
     },
     kpiGrid: {
       display: "grid",
@@ -127,6 +154,34 @@ export default function WarehouseDashboard() {
         fontSize: "12px",
         fontWeight: "600",
         cursor: "pointer"
+    },
+    quickGrid: {
+      display: "grid",
+      gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+      gap: "14px",
+      marginBottom: "24px"
+    },
+    quickCard: {
+      background: "#ffffff",
+      border: "1px solid #e5e7eb",
+      borderRadius: "12px",
+      padding: "14px",
+      display: "flex",
+      alignItems: "center",
+      gap: "12px",
+      textDecoration: "none",
+      color: "#111827",
+      boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)"
+    },
+    quickIcon: {
+      width: "36px",
+      height: "36px",
+      borderRadius: "10px",
+      background: "#eff6ff",
+      color: "#1d4ed8",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center"
     }
   };
 
@@ -134,13 +189,25 @@ export default function WarehouseDashboard() {
     <div>
       <div style={styles.titleSection}>
         <div>
-          <h1 style={styles.h1}>Welcome back, John</h1>
+          <h1 style={styles.h1}>Welcome back, {displayName}</h1>
           <p style={styles.p}>Here's what's happening in the warehouse today.</p>
         </div>
         <button style={styles.btnSecondary}>
           <Calendar size={18} />
           <span>March 14, 2024</span>
         </button>
+      </div>
+
+      <div style={styles.quickGrid}>
+        {quickActions.map((action) => (
+          <Link key={action.label} to={action.to} style={styles.quickCard}>
+            <div style={styles.quickIcon}>
+              <action.icon size={18} />
+            </div>
+            <div style={{ fontWeight: 600 }}>{action.label}</div>
+            <PlusCircle size={16} style={{ marginLeft: "auto", color: "#9ca3af" }} />
+          </Link>
+        ))}
       </div>
 
       <div style={styles.kpiGrid}>

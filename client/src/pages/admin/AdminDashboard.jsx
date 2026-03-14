@@ -50,6 +50,17 @@ export default function AdminDashboard() {
     { label: "Admin Users", value: String(stats.adminCount), sub: "Privileged roles", icon: ShieldCheck, color: "#8b5cf6", bg: "#f5f3ff" }
   ];
 
+  const adminAlerts = [
+    { id: "disabled", label: "Disabled accounts pending review", value: stats.disabled },
+    { id: "admins", label: "Admins with full access", value: stats.adminCount }
+  ];
+
+  const quickActions = [
+    { label: "Manage Users", to: "/admin/users" },
+    { label: "Warehouse Settings", to: "/admin/settings/warehouse" },
+    { label: "Inventory Dashboard", to: "/inventory/dashboard" }
+  ];
+
   const recentAdminActions = users
     .slice(0, 6)
     .map((u) => ({
@@ -103,6 +114,44 @@ export default function AdminDashboard() {
       fontSize: "14px",
       textDecoration: "none"
     },
+    actionGrid: {
+      display: "grid",
+      gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+      gap: "14px",
+      marginBottom: "24px"
+    },
+    actionCard: {
+      background: "#ffffff",
+      borderRadius: "12px",
+      border: "1px solid #e5e7eb",
+      padding: "16px",
+      textDecoration: "none",
+      color: "#111827",
+      display: "flex",
+      flexDirection: "column",
+      gap: "6px",
+      boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)"
+    },
+    actionLabel: { fontSize: "14px", fontWeight: "600" },
+    actionSub: { fontSize: "12px", color: "#6b7280" },
+    alertCard: {
+      background: "#ffffff",
+      borderRadius: "12px",
+      border: "1px solid #e5e7eb",
+      padding: "16px",
+      display: "grid",
+      gap: "10px",
+      marginBottom: "24px",
+      boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)"
+    },
+    alertRow: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      fontSize: "14px",
+      color: "#111827"
+    },
+    alertValue: { fontWeight: "700", color: "#111827" },
     kpiGrid: {
       display: "grid",
       gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
@@ -188,6 +237,15 @@ export default function AdminDashboard() {
         </div>
       </div>
 
+      <div style={styles.actionGrid}>
+        {quickActions.map((action) => (
+          <Link key={action.label} to={action.to} style={styles.actionCard}>
+            <span style={styles.actionLabel}>{action.label}</span>
+            <span style={styles.actionSub}>Open {action.label.toLowerCase()}</span>
+          </Link>
+        ))}
+      </div>
+
       <div style={styles.kpiGrid}>
         {kpis.map((kpi) => (
           <div key={kpi.label} style={styles.kpiCard}>
@@ -199,6 +257,15 @@ export default function AdminDashboard() {
               <p style={styles.kpiValue}>{kpi.value}</p>
               <div style={styles.p}>{kpi.sub}</div>
             </div>
+          </div>
+        ))}
+      </div>
+
+      <div style={styles.alertCard}>
+        {adminAlerts.map((alert) => (
+          <div key={alert.id} style={styles.alertRow}>
+            <span>{alert.label}</span>
+            <span style={styles.alertValue}>{alert.value}</span>
           </div>
         ))}
       </div>

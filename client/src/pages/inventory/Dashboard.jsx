@@ -3,6 +3,7 @@ import {
   Package, AlertTriangle, XCircle, PackageCheck, Truck, ArrowLeftRight,
   Plus, Filter, TrendingUp, TrendingDown, BarChart3, PieChart
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 // KPI Cards Component
 function KPICard({ label, value, icon: Icon, color }) {
@@ -113,6 +114,12 @@ export default function InventoryDashboard() {
     { id: 4, doc: 'ADJ-0087', type: 'Adjustment', date: '2026-03-11', product: 'Welding Electrode', qty: 3, status: 'completed' },
   ];
 
+  const lowStockAlerts = [
+    { id: 1, product: 'Circuit Board v3', sku: 'CB-2024-V3', stock: 18, threshold: 25 },
+    { id: 2, product: 'Oak Plywood Sheet', sku: 'OP-48-01', stock: 0, threshold: 30 },
+    { id: 3, product: 'Welding Electrode', sku: 'WE-32-01', stock: 3, threshold: 10 }
+  ];
+
   return (
     <div className="p-8">
       {/* Header */}
@@ -126,6 +133,34 @@ export default function InventoryDashboard() {
         {kpis.map((kpi) => (
           <KPICard key={kpi.label} {...kpi} />
         ))}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        <div className="bg-surface border border-line rounded-lg p-6" style={{ boxShadow: 'var(--shadow-md)' }}>
+          <h3 className="font-heading font-semibold text-ink mb-4">Quick Actions</h3>
+          <div className="flex flex-col gap-3">
+            <Link to="/inventory/products" className="px-4 py-2 rounded-lg border border-line bg-surface-soft text-ink text-sm">Manage Products</Link>
+            <Link to="/inventory/operations" className="px-4 py-2 rounded-lg border border-line bg-surface-soft text-ink text-sm">Create Operation</Link>
+            <Link to="/inventory/stock-ledger" className="px-4 py-2 rounded-lg border border-line bg-surface-soft text-ink text-sm">View Stock Ledger</Link>
+          </div>
+        </div>
+        <div className="bg-surface border border-line rounded-lg p-6 lg:col-span-2" style={{ boxShadow: 'var(--shadow-md)' }}>
+          <h3 className="font-heading font-semibold text-ink mb-4">Low Stock Alerts</h3>
+          <div className="space-y-3">
+            {lowStockAlerts.map((item) => (
+              <div key={item.id} className="flex items-center justify-between border border-line rounded-lg px-4 py-3 bg-surface-strong">
+                <div>
+                  <div className="text-sm font-medium text-ink">{item.product}</div>
+                  <div className="text-xs text-ink-soft">SKU {item.sku}</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-sm font-semibold text-ink">{item.stock} in stock</div>
+                  <div className="text-xs text-ink-soft">Threshold {item.threshold}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* Filters */}

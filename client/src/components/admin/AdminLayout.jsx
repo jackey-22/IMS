@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Users, LogOut, Search, Bell, ShieldCheck } from "lucide-react";
+import { LayoutDashboard, Users, Warehouse, LogOut, Search, Bell, ShieldCheck } from "lucide-react";
 import { useAuth } from "../../context/AuthContext.jsx";
 
 export default function AdminLayout() {
@@ -8,7 +8,8 @@ export default function AdminLayout() {
 
   const navItems = [
     { icon: LayoutDashboard, label: "Dashboard", path: "/admin/dashboard" },
-    { icon: Users, label: "Users", path: "/admin/users" }
+    { icon: Users, label: "Users", path: "/admin/users" },
+    { icon: Warehouse, label: "Settings • Warehouse", path: "/admin/settings/warehouse" }
   ];
 
   const handleLogout = () => {

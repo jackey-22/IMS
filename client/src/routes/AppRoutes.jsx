@@ -25,6 +25,7 @@ import StockLedger from "../pages/inventory/StockLedger.jsx";
 import Reports from "../pages/inventory/Reports.jsx";
 import Suppliers from "../pages/inventory/Suppliers.jsx";
 import Profile from "../pages/inventory/Profile.jsx";
+import WarehouseSettingsPage from "../pages/admin/WarehouseSettingsPage.jsx";
 
 function ProtectedRoute() {
   const { session } = useAuth();
@@ -97,6 +98,7 @@ export default function AppRoutes() {
           <Route element={<AdminLayout />}>
             <Route path="/admin/dashboard" element={<AdminDashboard />} />
             <Route path="/admin/users" element={<UsersPage />} />
+            <Route path="/admin/settings/warehouse" element={<WarehouseSettingsPage />} />
           </Route>
         </Route>
 

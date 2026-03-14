@@ -17,7 +17,7 @@ const getOtpTtlMinutes = () => {
 };
 
 const generateOtp = () => String(Math.floor(100000 + Math.random() * 900000));
-const loginIdPattern = /^[A-Za-z0-9_]{6,12}$/;
+const loginIdPattern = /^[A-Za-z0-9_-]{6,24}$/;
 const passwordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[^A-Za-z0-9]).{9,}$/;
 
 const validatePassword = (password) => passwordPattern.test(String(password));
@@ -53,7 +53,7 @@ router.post("/register", async (req, res) => {
     const normalizedLoginId = normalizeLoginId(String(loginId));
     if (!loginIdPattern.test(normalizedLoginId)) {
       return res.status(400).json({
-        message: "Login ID must be 6 to 12 characters using letters, numbers, or underscore"
+        message: "Login ID must be 6 to 24 characters using letters, numbers, hyphen, or underscore"
       });
     }
 

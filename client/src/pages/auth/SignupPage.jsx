@@ -30,7 +30,7 @@ export default function SignupPage() {
     event.preventDefault();
 
     if (!isValidLoginId(form.loginId.trim())) {
-      setFeedback({ type: "error", text: "Login ID must be 6 to 12 characters." });
+      setFeedback({ type: "error", text: "Login ID must be 6 to 24 characters." });
       return;
     }
 
@@ -85,7 +85,7 @@ export default function SignupPage() {
             name="loginId"
             value={form.loginId}
             onChange={handleChange}
-            placeholder="6-12 characters"
+            placeholder="6-24 characters (letters, numbers, - or _)"
             autoComplete="username"
           />
         </div>

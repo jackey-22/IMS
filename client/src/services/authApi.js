@@ -3,7 +3,7 @@ const API_BASES = ["/api/auth", "http://localhost:4000/api/auth", "http://localh
 export const passwordHint = "9+ chars with uppercase, lowercase, and special character.";
 
 export const isValidEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
-export const isValidLoginId = (value) => /^[A-Za-z0-9_]{6,12}$/.test(value);
+export const isValidLoginId = (value) => /^[A-Za-z0-9_-]{6,24}$/.test(value);
 export const isValidPassword = (value) => /^(?=.*[a-z])(?=.*[A-Z])(?=.*[^A-Za-z0-9]).{9,}$/.test(value);
 
 const postJson = async (path, body) => {

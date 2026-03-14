@@ -116,97 +116,256 @@ const buildTreeFromLocations = (locations = []) => {
   return roots;
 };
 
+const DEPTH_COLORS = [
+  { accent: '#3b82f6', bg: '#eff6ff', border: '#93c5fd', label: 'Root' },
+  { accent: '#10b981', bg: '#ecfdf5', border: '#6ee7b7', label: 'L1' },
+  { accent: '#f59e0b', bg: '#fffbeb', border: '#fcd34d', label: 'L2' },
+  { accent: '#8b5cf6', bg: '#f5f3ff', border: '#c4b5fd', label: 'L3' },
+  { accent: '#ef4444', bg: '#fef2f2', border: '#fca5a5', label: 'L4' },
+];
+
 function HierarchyRows({ nodes, depth, onChange, onAddChild, onRemove }) {
-  return nodes.map((node) => (
-    <div key={node.nodeId} className="space-y-2">
-      <div className="rounded-lg border border-line bg-surface-soft p-3" style={{ marginLeft: `${depth * 18}px` }}>
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-2 items-end">
-          <div className="md:col-span-4">
-            <label className="block text-xs font-medium text-ink-soft mb-1">Name</label>
-            <input
-              type="text"
-              value={node.name}
-              onChange={(e) => onChange(node.nodeId, "name", e.target.value)}
-              className="w-full px-2 py-2 border border-line rounded bg-surface text-ink text-sm"
-              placeholder={depth === 0 ? "Zone A" : "Rack A1"}
-            />
+  const dc = DEPTH_COLORS[Math.min(depth, DEPTH_COLORS.length - 1)];
+
+  return nodes.map((node, idx) => {
+    const isLastChild = idx === nodes.length - 1;
+
+    return (
+      <div key={node.nodeId} style={{ position: 'relative' }}>
+        {/* Connector lines for nested nodes */}
+        {depth > 0 && (
+          <>
+            <div style={{
+              position: 'absolute', left: -18, top: 0,
+              width: 2, height: isLastChild ? 36 : '100%',
+              background: 'rgba(24,52,87,0.1)'
+            }} />
+            <div style={{
+              position: 'absolute', left: -18, top: 36,
+              width: 18, height: 2,
+              background: 'rgba(24,52,87,0.1)'
+            }} />
+          </>
+        )}
+
+        {/* Node card */}
+        <div style={{
+          background: '#ffffff', border: `1px solid ${dc.border}`,
+          borderRadius: 14, padding: '14px 16px', margin: '6px 0',
+          borderLeft: `4px solid ${dc.accent}`,
+          boxShadow: '0 1px 3px rgba(17,40,70,0.04)'
+        }}>
+          {/* Depth indicator */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+            <span style={{
+              fontSize: 10, fontWeight: 700, textTransform: 'uppercase',
+              letterSpacing: '0.06em', padding: '2px 8px', borderRadius: 6,
+              background: dc.bg, color: dc.accent, border: `1px solid ${dc.border}`
+            }}>
+              {depth === 0 ? 'Root Node' : `Level ${depth}`}
+            </span>
+            {node.children?.length > 0 && (
+              <span style={{
+                fontSize: 10, fontWeight: 600, color: '#527196',
+                background: 'rgba(24,52,87,0.05)', padding: '2px 8px', borderRadius: 999
+              }}>
+                {node.children.length} {node.children.length === 1 ? 'child' : 'children'}
+              </span>
+            )}
           </div>
 
-          <div className="md:col-span-3">
-            <label className="block text-xs font-medium text-ink-soft mb-1">Code</label>
-            <input
-              type="text"
-              value={node.code}
-              onChange={(e) => onChange(node.nodeId, "code", e.target.value.toUpperCase())}
-              className="w-full px-2 py-2 border border-line rounded bg-surface text-ink text-sm"
-              placeholder={depth === 0 ? "ZONE-A" : "RACK-A1"}
-            />
-          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr auto', gap: 10, alignItems: 'end' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#527196', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Name</label>
+              <input
+                type="text"
+                value={node.name}
+                onChange={(e) => onChange(node.nodeId, "name", e.target.value)}
+                style={{
+                  width: '100%', padding: '8px 12px', border: '1px solid rgba(24,52,87,0.12)',
+                  borderRadius: 10, background: '#ffffff', color: '#15304f', fontSize: 13,
+                  outline: 'none', fontFamily: 'inherit'
+                }}
+                placeholder={depth === 0 ? "Zone A" : "Rack A1"}
+              />
+            </div>
 
-          <div className="md:col-span-3">
-            <label className="block text-xs font-medium text-ink-soft mb-1">Type</label>
-            <input
-              type="text"
-              value={node.type}
-              onChange={(e) => onChange(node.nodeId, "type", e.target.value)}
-              className="w-full px-2 py-2 border border-line rounded bg-surface text-ink text-sm"
-              placeholder="zone / rack / bin / shelf"
-            />
-          </div>
+            <div>
+              <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#527196', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Code</label>
+              <input
+                type="text"
+                value={node.code}
+                onChange={(e) => onChange(node.nodeId, "code", e.target.value.toUpperCase())}
+                style={{
+                  width: '100%', padding: '8px 12px', border: '1px solid rgba(24,52,87,0.12)',
+                  borderRadius: 10, background: '#ffffff', color: '#15304f', fontSize: 13,
+                  outline: 'none', fontFamily: 'Consolas, Monaco, monospace'
+                }}
+                placeholder={depth === 0 ? "ZONE-A" : "RACK-A1"}
+              />
+            </div>
 
-          <div className="md:col-span-2 flex gap-2">
-            <button
-              type="button"
-              onClick={() => onAddChild(node.nodeId)}
-              className="flex-1 px-2 py-2 border border-line rounded text-ink text-xs hover:bg-surface"
-              title="Add child"
-            >
-              + Child
-            </button>
-            <button
-              type="button"
-              onClick={() => onRemove(node.nodeId)}
-              className="px-2 py-2 border border-red-200 text-red-600 rounded text-xs hover:bg-red-50"
-              title="Remove"
-            >
-              Remove
-            </button>
+            <div>
+              <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#527196', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Type</label>
+              <input
+                type="text"
+                value={node.type}
+                onChange={(e) => onChange(node.nodeId, "type", e.target.value)}
+                style={{
+                  width: '100%', padding: '8px 12px', border: '1px solid rgba(24,52,87,0.12)',
+                  borderRadius: 10, background: '#ffffff', color: '#15304f', fontSize: 13,
+                  outline: 'none', fontFamily: 'inherit'
+                }}
+                placeholder="zone / rack / bin / shelf"
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: 6, paddingBottom: 1 }}>
+              <button
+                type="button"
+                onClick={() => onAddChild(node.nodeId)}
+                title="Add child node"
+                style={{
+                  padding: '8px 14px', border: `1px solid ${dc.border}`, borderRadius: 10,
+                  background: dc.bg, color: dc.accent, fontSize: 12, fontWeight: 700,
+                  cursor: 'pointer', whiteSpace: 'nowrap',
+                  display: 'inline-flex', alignItems: 'center', gap: 4
+                }}
+              >
+                + Child
+              </button>
+              <button
+                type="button"
+                onClick={() => onRemove(node.nodeId)}
+                title="Remove node"
+                style={{
+                  padding: '8px 14px', border: '1px solid #fecaca', borderRadius: 10,
+                  background: '#fef2f2', color: '#dc2626', fontSize: 12, fontWeight: 700,
+                  cursor: 'pointer', whiteSpace: 'nowrap'
+                }}
+              >
+                Remove
+              </button>
+            </div>
           </div>
         </div>
-      </div>
 
-      {!!node.children?.length && (
-        <HierarchyRows
-          nodes={node.children}
-          depth={depth + 1}
-          onChange={onChange}
-          onAddChild={onAddChild}
-          onRemove={onRemove}
-        />
-      )}
-    </div>
-  ));
+        {/* Children with indentation */}
+        {!!node.children?.length && (
+          <div style={{ marginLeft: 24, position: 'relative' }}>
+            <HierarchyRows
+              nodes={node.children}
+              depth={depth + 1}
+              onChange={onChange}
+              onAddChild={onAddChild}
+              onRemove={onRemove}
+            />
+          </div>
+        )}
+      </div>
+    );
+  });
 }
 
-function LocationTreeView({ nodes, depth = 0 }) {
-  return (
-    <div className="space-y-2">
-      {nodes.map((node) => (
-        <div key={`${node.code}-${node.name}-${depth}`}>
-          <div
-            className="flex items-center gap-2 rounded-md bg-surface-soft border border-line px-3 py-2"
-            style={{ marginLeft: `${depth * 18}px`, opacity: node.isActive ? 1 : 0.55 }}
-          >
-            <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded bg-blue-100 text-blue-800">
-              {node.type || "location"}
-            </span>
-            <span className="text-sm font-medium text-ink">{node.name}</span>
-            {node.code && <span className="text-xs text-ink-soft">({node.code})</span>}
-          </div>
+function LocationTreeView({ nodes, depth = 0, isLast = false }) {
+  const typeColors = {
+    zone: { bg: '#dbeafe', color: '#1e40af', border: '#93c5fd' },
+    rack: { bg: '#d1fae5', color: '#065f46', border: '#6ee7b7' },
+    bin: { bg: '#fef3c7', color: '#92400e', border: '#fcd34d' },
+    shelf: { bg: '#ede9fe', color: '#5b21b6', border: '#c4b5fd' },
+  };
 
-          {!!node.children?.length && <LocationTreeView nodes={node.children} depth={depth + 1} />}
-        </div>
-      ))}
+  const getTypeStyle = (type) => typeColors[type?.toLowerCase()] || { bg: '#f3f4f6', color: '#374151', border: '#d1d5db' };
+
+  return (
+    <div>
+      {nodes.map((node, idx) => {
+        const isLastChild = idx === nodes.length - 1;
+        const ts = getTypeStyle(node.type);
+        const hasChildren = !!node.children?.length;
+
+        return (
+          <div key={`${node.code}-${node.name}-${depth}`} style={{ position: 'relative' }}>
+            {/* Connector lines */}
+            {depth > 0 && (
+              <>
+                {/* Vertical line from parent */}
+                <div style={{
+                  position: 'absolute', left: -20, top: 0,
+                  width: 2, height: isLastChild ? 22 : '100%',
+                  background: 'rgba(24,52,87,0.12)'
+                }} />
+                {/* Horizontal connector to node */}
+                <div style={{
+                  position: 'absolute', left: -20, top: 22,
+                  width: 20, height: 2,
+                  background: 'rgba(24,52,87,0.12)'
+                }} />
+              </>
+            )}
+
+            {/* Node card */}
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 10,
+              padding: '10px 16px', margin: '4px 0',
+              borderRadius: 12, border: `1px solid ${ts.border}`,
+              background: '#ffffff',
+              opacity: node.isActive ? 1 : 0.5,
+              transition: 'box-shadow 140ms ease',
+              boxShadow: '0 1px 3px rgba(17,40,70,0.04)'
+            }}>
+              {/* Type badge */}
+              <span style={{
+                fontSize: 10, fontWeight: 700, textTransform: 'uppercase',
+                letterSpacing: '0.06em', padding: '3px 10px',
+                borderRadius: 6, background: ts.bg, color: ts.color,
+                border: `1px solid ${ts.border}`, whiteSpace: 'nowrap'
+              }}>
+                {node.type || 'location'}
+              </span>
+
+              {/* Node info */}
+              <span style={{ fontSize: 14, fontWeight: 600, color: '#15304f' }}>{node.name}</span>
+              {node.code && (
+                <span style={{
+                  fontSize: 12, color: '#527196', fontFamily: 'Consolas, Monaco, monospace',
+                  background: 'rgba(24,52,87,0.05)', padding: '2px 8px', borderRadius: 6
+                }}>
+                  {node.code}
+                </span>
+              )}
+
+              {/* Children count badge */}
+              {hasChildren && (
+                <span style={{
+                  fontSize: 11, fontWeight: 600, color: '#527196',
+                  marginLeft: 'auto', background: 'rgba(24,52,87,0.06)',
+                  padding: '2px 8px', borderRadius: 999
+                }}>
+                  {node.children.length} {node.children.length === 1 ? 'child' : 'children'}
+                </span>
+              )}
+
+              {!node.isActive && (
+                <span style={{
+                  fontSize: 10, fontWeight: 700, padding: '2px 8px',
+                  borderRadius: 999, background: '#fee2e2', color: '#991b1b',
+                  marginLeft: hasChildren ? 0 : 'auto'
+                }}>
+                  Disabled
+                </span>
+              )}
+            </div>
+
+            {/* Children with indentation */}
+            {hasChildren && (
+              <div style={{ marginLeft: 28, position: 'relative' }}>
+                <LocationTreeView nodes={node.children} depth={depth + 1} isLast={isLastChild} />
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -370,154 +529,306 @@ export default function LocationSettingsPage() {
     }
   };
 
+  const s = {
+    card: {
+      background: '#ffffff', borderRadius: 16, border: '1px solid rgba(24,52,87,0.08)',
+      boxShadow: '0 14px 36px rgba(17,40,70,0.08)', overflow: 'hidden', marginBottom: 20
+    },
+    cardHeader: {
+      padding: '18px 22px', borderBottom: '1px solid rgba(24,52,87,0.08)',
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between'
+    },
+    cardBody: { padding: '20px 22px' },
+    cardTitle: { fontSize: 16, fontWeight: 600, margin: 0, fontFamily: 'Sora, sans-serif', color: '#15304f', display: 'flex', alignItems: 'center', gap: 8 },
+    kpiGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14, marginBottom: 22 },
+    kpiCard: {
+      background: '#ffffff', padding: '18px 20px', borderRadius: 16,
+      boxShadow: '0 14px 36px rgba(17,40,70,0.08)', border: '1px solid rgba(24,52,87,0.08)'
+    },
+    kpiLabel: { fontSize: 11, color: '#527196', margin: 0, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' },
+    kpiValue: { fontSize: 28, fontWeight: 700, color: '#15304f', margin: '6px 0 0', fontFamily: 'Sora, sans-serif' },
+    label: { display: 'block', fontSize: 12, fontWeight: 600, color: '#527196', marginBottom: 6, letterSpacing: '0.03em' },
+    select: {
+      width: '100%', padding: '10px 14px', border: '1px solid rgba(24,52,87,0.12)',
+      borderRadius: 12, background: '#ffffff', color: '#15304f', fontSize: 14,
+      fontFamily: 'inherit', outline: 'none', appearance: 'auto', cursor: 'pointer'
+    },
+    table: { width: '100%', borderCollapse: 'collapse' },
+    th: {
+      textAlign: 'left', padding: '12px 22px', background: '#f8fafc',
+      color: '#527196', fontWeight: 600, fontSize: 12,
+      textTransform: 'uppercase', letterSpacing: '0.05em'
+    },
+    td: {
+      padding: '14px 22px', borderBottom: '1px solid rgba(24,52,87,0.06)',
+      fontSize: 14, color: '#15304f'
+    },
+    statusBadge: (active) => ({
+      padding: '4px 12px', borderRadius: 999, fontSize: 12, fontWeight: 600,
+      background: active ? '#d1fae5' : '#fee2e2',
+      color: active ? '#065f46' : '#991b1b'
+    }),
+    actionBtn: (variant) => ({
+      padding: '6px 14px', borderRadius: 10, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: 'none',
+      ...(variant === 'danger'
+        ? { background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca' }
+        : { background: '#f8fafc', color: '#15304f', border: '1px solid rgba(24,52,87,0.12)' }
+      )
+    }),
+    emptyState: {
+      padding: '32px 20px', textAlign: 'center', color: '#527196', fontSize: 14,
+      border: '1px dashed rgba(24,52,87,0.15)', borderRadius: 12, background: '#fafbfd'
+    },
+    nodeCount: {
+      fontSize: 12, color: '#527196', background: 'rgba(24,52,87,0.05)',
+      padding: '4px 12px', borderRadius: 999, fontWeight: 600
+    }
+  };
+
+  const typeBadgeStyle = (type) => {
+    const map = {
+      zone: { bg: '#dbeafe', color: '#1e40af', border: '#93c5fd' },
+      rack: { bg: '#d1fae5', color: '#065f46', border: '#6ee7b7' },
+      bin: { bg: '#fef3c7', color: '#92400e', border: '#fcd34d' },
+      shelf: { bg: '#ede9fe', color: '#5b21b6', border: '#c4b5fd' },
+    };
+    const t = map[type?.toLowerCase()] || { bg: '#f3f4f6', color: '#374151', border: '#d1d5db' };
+    return {
+      fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em',
+      padding: '3px 10px', borderRadius: 6, background: t.bg, color: t.color, border: `1px solid ${t.border}`
+    };
+  };
+
   return (
     <div>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "24px" }}>
+      {/* Page Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <h1 style={{ margin: 0, fontSize: "24px", color: "#111827", fontWeight: 700 }}>Settings · Locations</h1>
-          <p style={{ margin: "4px 0 0", color: "#6b7280", fontSize: "14px" }}>
-            Dynamic hierarchy builder for unlimited nested locations.
+          <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700, color: '#15304f', fontFamily: 'Sora, sans-serif', letterSpacing: '-0.03em' }}>
+            Settings · Locations
+          </h1>
+          <p style={{ margin: '4px 0 0', color: '#527196', fontSize: 14 }}>
+            Build and manage unlimited nested location hierarchies for your warehouses.
           </p>
         </div>
       </div>
 
+      {/* Feedback banners */}
       {feedback && (
-        <div className={`feedback ${feedback.type}`} style={{ marginBottom: "14px" }}>
+        <div style={{
+          padding: '12px 18px', borderRadius: 12, marginBottom: 16, fontSize: 14, fontWeight: 600,
+          ...(feedback.type === 'error'
+            ? { background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca' }
+            : { background: '#ecfdf5', color: '#065f46', border: '1px solid #6ee7b7' })
+        }}>
           {feedback.text}
         </div>
       )}
       {error && (
-        <div className="feedback error" style={{ marginBottom: "14px" }}>
+        <div style={{
+          padding: '12px 18px', borderRadius: 12, marginBottom: 16, fontSize: 14, fontWeight: 600,
+          background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca'
+        }}>
           {error}
         </div>
       )}
 
-      <section className="admin-kpi-grid" style={{ marginBottom: "20px" }}>
-        <article className="admin-kpi-card">
-          <span className="admin-kpi-label">Selected Warehouse</span>
-          <strong className="admin-kpi-value">{selectedWarehouse?.code || "-"}</strong>
-        </article>
-        <article className="admin-kpi-card">
-          <span className="admin-kpi-label">Locations</span>
-          <strong className="admin-kpi-value">{selectedWarehouse?.locations?.length || 0}</strong>
-        </article>
-        <article className="admin-kpi-card">
-          <span className="admin-kpi-label">Root Nodes</span>
-          <strong className="admin-kpi-value">{rootLocationsCount}</strong>
-        </article>
-      </section>
+      {/* KPI Cards */}
+      <div style={s.kpiGrid}>
+        <div style={s.kpiCard}>
+          <p style={s.kpiLabel}>Selected Warehouse</p>
+          <p style={s.kpiValue}>{selectedWarehouse?.code || '—'}</p>
+        </div>
+        <div style={s.kpiCard}>
+          <p style={s.kpiLabel}>Total Locations</p>
+          <p style={s.kpiValue}>{selectedWarehouse?.locations?.length || 0}</p>
+        </div>
+        <div style={s.kpiCard}>
+          <p style={s.kpiLabel}>Root Nodes</p>
+          <p style={s.kpiValue}>{rootLocationsCount}</p>
+        </div>
+      </div>
 
-      <section className="dashboard-card" style={{ padding: "18px", marginBottom: "16px" }}>
-        <h2 style={{ margin: "0 0 14px", fontSize: "18px", color: "#111827" }}>Add Location Hierarchy</h2>
-        <form className="form" onSubmit={handleSaveHierarchy}>
-          <div className="field">
-            <label htmlFor="warehouse-select">Warehouse</label>
-            <select
-              id="warehouse-select"
-              className="admin-input-select"
-              value={selectedWarehouseId}
-              onChange={(e) => setSelectedWarehouseId(e.target.value)}
-            >
-              <option value="">Select warehouse</option>
-              {warehouses.map((w) => (
-                <option key={w._id} value={w._id}>{w.name} ({w.code})</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="rounded-lg border border-line p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium text-ink">Hierarchy Nodes</p>
-                <p className="text-xs text-ink-soft">Add any number of levels: Zone -&gt; Rack -&gt; Bin -&gt; Shelf...</p>
-              </div>
-              <button
-                type="button"
-                onClick={addRootNode}
-                className="px-3 py-1.5 border border-line rounded text-sm hover:bg-surface-soft"
+      {/* Hierarchy Builder Card */}
+      <div style={s.card}>
+        <div style={s.cardHeader}>
+          <h2 style={s.cardTitle}>
+            <Plus size={18} style={{ color: '#3b82f6' }} />
+            Add Location Hierarchy
+          </h2>
+        </div>
+        <div style={s.cardBody}>
+          <form onSubmit={handleSaveHierarchy}>
+            {/* Warehouse selector */}
+            <div style={{ marginBottom: 18 }}>
+              <label style={s.label} htmlFor="warehouse-select">Warehouse</label>
+              <select
+                id="warehouse-select"
+                style={s.select}
+                value={selectedWarehouseId}
+                onChange={(e) => setSelectedWarehouseId(e.target.value)}
               >
-                + Add Root
-              </button>
+                <option value="">Select warehouse</option>
+                {warehouses.map((w) => (
+                  <option key={w._id} value={w._id}>{w.name} ({w.code})</option>
+                ))}
+              </select>
             </div>
 
-            {!hierarchyNodes.length ? (
-              <div className="text-sm text-ink-soft border border-dashed border-line rounded p-3">
-                Start by adding a root node. Then add children under it.
+            {/* Hierarchy builder area */}
+            <div style={{
+              border: '1px solid rgba(24,52,87,0.1)', borderRadius: 14,
+              padding: 18, background: '#fafbfd', marginBottom: 18
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                <div>
+                  <p style={{ margin: 0, fontSize: 15, fontWeight: 600, color: '#15304f' }}>Hierarchy Nodes</p>
+                  <p style={{ margin: '2px 0 0', fontSize: 12, color: '#527196' }}>
+                    Zone → Rack → Bin → Shelf — nest as many levels as you need.
+                  </p>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={s.nodeCount}>
+                    {countNodes(hierarchyNodes)} {countNodes(hierarchyNodes) === 1 ? 'node' : 'nodes'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={addRootNode}
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 6,
+                      padding: '8px 16px', border: '1px solid #93c5fd', borderRadius: 10,
+                      background: '#eff6ff', color: '#2563eb', fontSize: 13, fontWeight: 700,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <Plus size={14} />
+                    Add Root
+                  </button>
+                </div>
               </div>
-            ) : (
-              <HierarchyRows
-                nodes={hierarchyNodes}
-                depth={0}
-                onChange={applyNodeChange}
-                onAddChild={addChildNode}
-                onRemove={removeNode}
-              />
-            )}
 
-            <p className="text-xs text-ink-soft">Current nodes: {countNodes(hierarchyNodes)}</p>
-          </div>
+              {!hierarchyNodes.length ? (
+                <div style={s.emptyState}>
+                  <MapPin size={24} style={{ color: '#93c5fd', marginBottom: 8 }} />
+                  <p style={{ margin: 0, fontWeight: 600 }}>No nodes yet</p>
+                  <p style={{ margin: '4px 0 0', fontSize: 13 }}>Click "Add Root" to start building your location tree.</p>
+                </div>
+              ) : (
+                <HierarchyRows
+                  nodes={hierarchyNodes}
+                  depth={0}
+                  onChange={applyNodeChange}
+                  onAddChild={addChildNode}
+                  onRemove={removeNode}
+                />
+              )}
+            </div>
 
-          <button className="button" type="submit" disabled={savingHierarchy || !selectedWarehouseId}>
-            <Plus size={16} />
-            <span style={{ marginLeft: "6px" }}>{savingHierarchy ? "Saving..." : "Save Hierarchy"}</span>
-          </button>
-        </form>
-      </section>
+            {/* Save button */}
+            <button
+              type="submit"
+              disabled={savingHierarchy || !selectedWarehouseId}
+              style={{
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                padding: '12px 28px', border: 'none', borderRadius: 12,
+                background: savingHierarchy || !selectedWarehouseId
+                  ? '#94a3b8'
+                  : 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                color: '#ffffff', fontSize: 14, fontWeight: 700, cursor: 'pointer',
+                boxShadow: savingHierarchy || !selectedWarehouseId
+                  ? 'none'
+                  : '0 4px 14px rgba(37,99,235,0.25)',
+                opacity: savingHierarchy || !selectedWarehouseId ? 0.7 : 1,
+                transition: 'all 200ms ease'
+              }}
+            >
+              <Plus size={16} />
+              <span>{savingHierarchy ? 'Saving...' : 'Save Hierarchy'}</span>
+            </button>
+          </form>
+        </div>
+      </div>
 
-      <section className="dashboard-card" style={{ padding: "18px", marginBottom: "16px" }}>
-        <h2 style={{ margin: "0 0 12px", fontSize: "18px", color: "#111827", display: "flex", alignItems: "center", gap: "8px" }}>
-          <MapPin size={18} /> Current Location Tree
-        </h2>
+      {/* Current Location Tree Card */}
+      <div style={s.card}>
+        <div style={s.cardHeader}>
+          <h2 style={s.cardTitle}>
+            <MapPin size={18} style={{ color: '#10b981' }} />
+            Current Location Tree
+          </h2>
+          {selectedWarehouse?.locations?.length > 0 && (
+            <span style={s.nodeCount}>
+              {selectedWarehouse.locations.length} locations
+            </span>
+          )}
+        </div>
+        <div style={s.cardBody}>
+          {loading ? (
+            <div style={s.emptyState}>Loading warehouses...</div>
+          ) : !selectedWarehouse ? (
+            <div style={s.emptyState}>
+              <MapPin size={24} style={{ color: '#93c5fd', marginBottom: 8 }} />
+              <p style={{ margin: 0, fontWeight: 600 }}>No warehouse selected</p>
+              <p style={{ margin: '4px 0 0', fontSize: 13 }}>Choose a warehouse above to view its location hierarchy.</p>
+            </div>
+          ) : !selectedWarehouse.locations?.length ? (
+            <div style={s.emptyState}>
+              <MapPin size={24} style={{ color: '#93c5fd', marginBottom: 8 }} />
+              <p style={{ margin: 0, fontWeight: 600 }}>No locations in {selectedWarehouse.name}</p>
+              <p style={{ margin: '4px 0 0', fontSize: 13 }}>Use the hierarchy builder above to add your first locations.</p>
+            </div>
+          ) : (
+            <LocationTreeView nodes={currentTree} />
+          )}
+        </div>
+      </div>
+
+      {/* Locations Table Card */}
+      <div style={s.card}>
+        <div style={s.cardHeader}>
+          <h2 style={s.cardTitle}>Locations Table</h2>
+        </div>
         {loading ? (
-          <p className="muted">Loading warehouses...</p>
+          <div style={{ ...s.cardBody, ...s.emptyState, margin: 20 }}>Loading...</div>
         ) : !selectedWarehouse ? (
-          <p className="muted">Select a warehouse to view hierarchy.</p>
+          <div style={{ ...s.cardBody, ...s.emptyState, margin: 20 }}>Select a warehouse.</div>
         ) : !selectedWarehouse.locations?.length ? (
-          <p className="muted">No locations found for {selectedWarehouse.name}.</p>
+          <div style={{ ...s.cardBody, ...s.emptyState, margin: 20 }}>No locations yet.</div>
         ) : (
-          <LocationTreeView nodes={currentTree} />
-        )}
-      </section>
-
-      <section className="dashboard-card" style={{ padding: "18px" }}>
-        <h2 style={{ margin: "0 0 12px", fontSize: "18px", color: "#111827" }}>Locations Table</h2>
-        {loading ? (
-          <p className="muted">Loading warehouses...</p>
-        ) : !selectedWarehouse ? (
-          <p className="muted">Select a warehouse to view locations.</p>
-        ) : !selectedWarehouse.locations?.length ? (
-          <p className="muted">No locations found for {selectedWarehouse.name}.</p>
-        ) : (
-          <div className="users-table-wrap">
-            <table className="users-table">
+          <div style={{ overflowX: 'auto' }}>
+            <table style={s.table}>
               <thead>
                 <tr>
-                  <th>Name</th>
-                  <th>Code</th>
-                  <th>Type</th>
-                  <th>Parent</th>
-                  <th>Status</th>
-                  <th>Actions</th>
+                  <th style={s.th}>Name</th>
+                  <th style={s.th}>Code</th>
+                  <th style={s.th}>Type</th>
+                  <th style={s.th}>Parent</th>
+                  <th style={s.th}>Status</th>
+                  <th style={s.th}>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {selectedWarehouse.locations.map((loc) => (
                   <tr key={loc._id}>
-                    <td className="user-primary">{loc.name}</td>
-                    <td className="user-login-id">{loc.code}</td>
-                    <td>{loc.type || "location"}</td>
-                    <td>{loc.parentCode || "-"}</td>
-                    <td>
-                      <span className={`status-pill ${loc.isActive ? "active" : "disabled"}`}>
-                        {loc.isActive ? "Active" : "Disabled"}
+                    <td style={{ ...s.td, fontWeight: 600 }}>{loc.name}</td>
+                    <td style={{ ...s.td, fontFamily: 'Consolas, Monaco, monospace', fontSize: 13 }}>{loc.code}</td>
+                    <td style={s.td}>
+                      <span style={typeBadgeStyle(loc.type)}>{loc.type || 'location'}</span>
+                    </td>
+                    <td style={{ ...s.td, color: loc.parentCode ? '#15304f' : '#94a3b8' }}>
+                      {loc.parentCode || '—'}
+                    </td>
+                    <td style={s.td}>
+                      <span style={s.statusBadge(loc.isActive)}>
+                        {loc.isActive ? 'Active' : 'Disabled'}
                       </span>
                     </td>
-                    <td>
-                      <div className="admin-actions">
-                        <button className="ghost-button admin-action-btn" type="button" onClick={() => toggleLocationStatus(loc)}>
-                          {loc.isActive ? "Disable" : "Enable"}
+                    <td style={s.td}>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button style={s.actionBtn('ghost')} type="button" onClick={() => toggleLocationStatus(loc)}>
+                          {loc.isActive ? 'Disable' : 'Enable'}
                         </button>
-                        <button className="admin-danger-btn" type="button" onClick={() => handleDeleteLocation(loc)}>
+                        <button style={s.actionBtn('danger')} type="button" onClick={() => handleDeleteLocation(loc)}>
                           Delete
                         </button>
                       </div>
@@ -528,7 +839,7 @@ export default function LocationSettingsPage() {
             </table>
           </div>
         )}
-      </section>
+      </div>
     </div>
   );
 }

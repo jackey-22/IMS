@@ -1,13 +1,34 @@
-import { Search, Filter, ArrowUpDown, ChevronRight, Map } from "lucide-react";
+import { Search, ChevronRight, Map, Edit, Check, X } from "lucide-react";
+import { useState } from "react";
 
 export default function ProductsSearchPage() {
-  const products = [
+  const [products, setProducts] = useState([
     { name: "Steel Rods", sku: "STR-001", category: "Raw Material", stock: 1250, warehouse: "Main", location: "Aisle 1, Shelf A" },
     { name: "Power Drills", sku: "PWR-202", category: "Tools", stock: 45, warehouse: "Main", location: "Aisle 4, Shelf B" },
     { name: "Brake Pads", sku: "BRK-500", category: "Auto Parts", stock: 850, warehouse: "North", location: "Aisle 2, Bin 12" },
     { name: "Office Chairs", sku: "OFC-101", category: "Furniture", stock: 12, warehouse: "Main", location: "Aisle 8" },
     { name: "Duct Tape", sku: "MISC-99", category: "Consumables", stock: 500, warehouse: "Main", location: "Dispatch Bay" },
-  ];
+  ]);
+
+  const [editingSku, setEditingSku] = useState(null);
+  const [draftStock, setDraftStock] = useState('');
+
+  const startStockEdit = (product) => {
+    setEditingSku(product.sku);
+    setDraftStock(String(product.stock));
+  };
+
+  const cancelStockEdit = () => {
+    setEditingSku(null);
+    setDraftStock('');
+  };
+
+  const saveStockEdit = (product) => {
+    const nextStock = Number(draftStock);
+    if (Number.isNaN(nextStock) || nextStock < 0) return;
+    setProducts(products.map((p) => (p.sku === product.sku ? { ...p, stock: nextStock } : p)));
+    cancelStockEdit();
+  };
 
   const commonStyles = {
     titleSection: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "24px" },
@@ -77,12 +98,48 @@ export default function ProductsSearchPage() {
               <tr key={i}>
                 <td style={{ ...commonStyles.td, fontWeight: "600" }}>{p.name}</td>
                 <td style={{ ...commonStyles.td, color: "#6b7280" }}>{p.sku}</td>
-                <td style={{ ...commonStyles.td, fontWeight: "700" }}>{p.stock}</td>
+                <td style={{ ...commonStyles.td, fontWeight: "700" }}>
+                  {editingSku === p.sku ? (
+                    <input
+                      type="number"
+                      value={draftStock}
+                      onChange={(e) => setDraftStock(e.target.value)}
+                      style={{ padding: "6px 10px", borderRadius: "6px", border: "1px solid #e5e7eb", width: "90px" }}
+                    />
+                  ) : (
+                    p.stock
+                  )}
+                </td>
                 <td style={commonStyles.td}>{p.location}</td>
                 <td style={commonStyles.td}>
-                  <button style={{ background: "transparent", border: "none", cursor: "pointer", color: "#6b7280" }}>
-                    <ChevronRight size={18} />
-                  </button>
+                  {editingSku === p.sku ? (
+                    <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                      <button
+                        onClick={() => saveStockEdit(p)}
+                        style={{ background: "transparent", border: "none", cursor: "pointer", color: "#16a34a" }}
+                      >
+                        <Check size={18} />
+                      </button>
+                      <button
+                        onClick={cancelStockEdit}
+                        style={{ background: "transparent", border: "none", cursor: "pointer", color: "#ef4444" }}
+                      >
+                        <X size={18} />
+                      </button>
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                      <button
+                        onClick={() => startStockEdit(p)}
+                        style={{ background: "transparent", border: "none", cursor: "pointer", color: "#6b7280" }}
+                      >
+                        <Edit size={18} />
+                      </button>
+                      <button style={{ background: "transparent", border: "none", cursor: "pointer", color: "#6b7280" }}>
+                        <ChevronRight size={18} />
+                      </button>
+                    </div>
+                  )}
                 </td>
               </tr>
             ))}

@@ -99,6 +99,7 @@ import { PackageCheck, Truck, ArrowLeftRight } from 'lucide-react';
 export default function Operations() {
   const [activeTab, setActiveTab] = useState('receipts');
   const [search, setSearch] = useState('');
+  const [view, setView] = useState('list');
 
   const tabs = [
     { id: 'receipts', label: 'Receipts', icon: PackageCheck },
@@ -142,6 +143,16 @@ export default function Operations() {
     op.items[0]?.productName.toLowerCase().includes(search.toLowerCase())
   );
 
+  const kanbanStatuses = {
+    receipts: ['draft', 'pending', 'completed'],
+    deliveries: ['draft', 'pending', 'completed']
+  };
+
+  const groupedOps = (kanbanStatuses[activeTab] || []).reduce((acc, status) => {
+    acc[status] = filtered.filter((op) => op.status === status);
+    return acc;
+  }, {});
+
   return (
     <div className="p-8">
       {/* Header */}
@@ -160,8 +171,8 @@ export default function Operations() {
       <Tabs tabs={tabs} activeTab={activeTab} setActiveTab={setActiveTab} />
 
       {/* Search */}
-      <div className="mb-6">
-        <div className="relative max-w-sm">
+      <div className="mb-6 flex flex-wrap gap-4 items-center">
+        <div className="relative max-w-sm flex-1 min-w-[220px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-soft" />
           <input
             type="text"
@@ -171,10 +182,49 @@ export default function Operations() {
             className="w-full pl-10 pr-4 py-2 border border-line rounded-lg bg-surface text-ink text-sm"
           />
         </div>
+        {(activeTab === 'receipts' || activeTab === 'deliveries') && (
+          <div className="flex gap-2">
+            <button
+              onClick={() => setView('list')}
+              className={`px-3 py-2 rounded-lg border text-sm ${view === 'list' ? 'bg-blue-50 border-blue-200 text-blue-900' : 'bg-surface border-line text-ink'}`}
+            >
+              List
+            </button>
+            <button
+              onClick={() => setView('kanban')}
+              className={`px-3 py-2 rounded-lg border text-sm ${view === 'kanban' ? 'bg-blue-50 border-blue-200 text-blue-900' : 'bg-surface border-line text-ink'}`}
+            >
+              Kanban
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* Operations Table */}
-      <OperationsTable operations={filtered} type={activeTab.slice(0, -1)} />
+      {/* Operations Table / Kanban */}
+      {(activeTab === 'receipts' || activeTab === 'deliveries') && view === 'kanban' ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {(kanbanStatuses[activeTab] || []).map((status) => (
+            <div key={status} className="bg-surface border border-line rounded-lg p-4" style={{ boxShadow: 'var(--shadow-md)' }}>
+              <div className="font-semibold text-ink mb-3">{status.charAt(0).toUpperCase() + status.slice(1)}</div>
+              <div className="flex flex-col gap-3">
+                {(groupedOps[status] || []).map((op) => (
+                  <div key={op.id} className="border border-line rounded-lg p-3 bg-surface-strong">
+                    <div className="font-mono text-xs font-semibold text-ink">{op.docNumber}</div>
+                    <div className="text-sm text-ink mt-1">{op.items[0]?.productName}</div>
+                    <div className="text-xs text-ink-soft mt-1">Qty: {op.items[0]?.quantity}</div>
+                    <div className="text-xs text-ink-soft mt-1">Date: {op.date}</div>
+                  </div>
+                ))}
+                {(groupedOps[status] || []).length === 0 && (
+                  <div className="text-xs text-ink-soft">No items</div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <OperationsTable operations={filtered} type={activeTab.slice(0, -1)} />
+      )}
 
       {filtered.length === 0 && (
         <div className="text-center py-12">

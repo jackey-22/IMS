@@ -12,6 +12,7 @@ export default function ReceiptsPage() {
   const [view, setView] = useState("list");
   const [selectedReceipt, setSelectedReceipt] = useState(null);
   const [receivedQty, setReceivedQty] = useState("");
+  const [search, setSearch] = useState("");
 
   const receipts = [
     { id: "REC-001", supplier: "Tata Steel", product: "Steel Rods", expected: 100, received: 0, status: "Waiting", date: "2024-03-14" },
@@ -24,6 +25,22 @@ export default function ReceiptsPage() {
     setReceivedQty(receipt.received.toString());
     setView("details");
   };
+
+  const filteredReceipts = receipts.filter((receipt) => {
+    const query = search.trim().toLowerCase();
+    if (!query) return true;
+    return (
+      receipt.id.toLowerCase().includes(query) ||
+      receipt.supplier.toLowerCase().includes(query) ||
+      receipt.product.toLowerCase().includes(query)
+    );
+  });
+
+  const kanbanColumns = ["Waiting", "In Progress", "Done"];
+  const groupedReceipts = kanbanColumns.reduce((acc, status) => {
+    acc[status] = filteredReceipts.filter((receipt) => receipt.status === status);
+    return acc;
+  }, {});
 
   const commonStyles = {
     titleSection: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "24px" },
@@ -111,46 +128,103 @@ export default function ReceiptsPage() {
         <button style={commonStyles.btnPrimary}><Plus size={18} /> New Receipt</button>
       </div>
 
-      <div style={{ display: "flex", gap: "16px", marginBottom: "20px" }}>
-        <div style={{ flex: 1, display: "flex", background: "white", padding: "8px 16px", borderRadius: "8px", border: "1px solid #e5e7eb", alignItems: "center", gap: "8px" }}>
+      <div style={{ display: "flex", gap: "16px", marginBottom: "20px", flexWrap: "wrap" }}>
+        <div style={{ flex: 1, display: "flex", background: "white", padding: "8px 16px", borderRadius: "8px", border: "1px solid #e5e7eb", alignItems: "center", gap: "8px", minWidth: "240px" }}>
           <Search size={18} color="#6b7280" />
-          <input placeholder="Search..." style={{ border: "none", outline: "none", width: "100%", fontSize: "14px" }} />
+          <input
+            placeholder="Search..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{ border: "none", outline: "none", width: "100%", fontSize: "14px" }}
+          />
         </div>
         <button style={commonStyles.btnSecondary}><Filter size={18} /> Filters</button>
+        <div style={{ display: "flex", gap: "8px" }}>
+          <button
+            style={{
+              ...commonStyles.btnSecondary,
+              background: view === "list" ? "#eff6ff" : "white",
+              borderColor: view === "list" ? "#bfdbfe" : "#e5e7eb",
+              color: "#1e3a8a"
+            }}
+            onClick={() => setView("list")}
+          >
+            List
+          </button>
+          <button
+            style={{
+              ...commonStyles.btnSecondary,
+              background: view === "kanban" ? "#eff6ff" : "white",
+              borderColor: view === "kanban" ? "#bfdbfe" : "#e5e7eb",
+              color: "#1e3a8a"
+            }}
+            onClick={() => setView("kanban")}
+          >
+            Kanban
+          </button>
+        </div>
       </div>
-
-      <div style={commonStyles.card}>
-        <table style={commonStyles.table}>
-          <thead>
-            <tr>
-              <th style={commonStyles.th}>ID</th>
-              <th style={commonStyles.th}>Supplier</th>
-              <th style={commonStyles.th}>Product</th>
-              <th style={commonStyles.th}>Expected</th>
-              <th style={commonStyles.th}>Status</th>
-              <th style={commonStyles.th}>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {receipts.map((r) => (
-              <tr key={r.id}>
-                <td style={{ ...commonStyles.td, fontWeight: "600" }}>{r.id}</td>
-                <td style={commonStyles.td}>{r.supplier}</td>
-                <td style={commonStyles.td}>{r.product}</td>
-                <td style={commonStyles.td}>{r.expected}</td>
-                <td style={commonStyles.td}>
-                  <span style={commonStyles.statusBadge(r.status === 'Done' ? '#d1fae5' : '#e0f2fe', r.status === 'Done' ? '#065f46' : '#075985')}>
-                    {r.status}
-                  </span>
-                </td>
-                <td style={commonStyles.td}>
-                  <button onClick={() => handleOpenReceipt(r)} style={{ ...commonStyles.btnSecondary, padding: "4px 12px", fontSize: "12px" }}>Open</button>
-                </td>
+      {view === "list" ? (
+        <div style={commonStyles.card}>
+          <table style={commonStyles.table}>
+            <thead>
+              <tr>
+                <th style={commonStyles.th}>ID</th>
+                <th style={commonStyles.th}>Supplier</th>
+                <th style={commonStyles.th}>Product</th>
+                <th style={commonStyles.th}>Expected</th>
+                <th style={commonStyles.th}>Status</th>
+                <th style={commonStyles.th}>Action</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {filteredReceipts.map((r) => (
+                <tr key={r.id}>
+                  <td style={{ ...commonStyles.td, fontWeight: "600" }}>{r.id}</td>
+                  <td style={commonStyles.td}>{r.supplier}</td>
+                  <td style={commonStyles.td}>{r.product}</td>
+                  <td style={commonStyles.td}>{r.expected}</td>
+                  <td style={commonStyles.td}>
+                    <span style={commonStyles.statusBadge(r.status === 'Done' ? '#d1fae5' : '#e0f2fe', r.status === 'Done' ? '#065f46' : '#075985')}>
+                      {r.status}
+                    </span>
+                  </td>
+                  <td style={commonStyles.td}>
+                    <button onClick={() => handleOpenReceipt(r)} style={{ ...commonStyles.btnSecondary, padding: "4px 12px", fontSize: "12px" }}>Open</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "16px" }}>
+          {kanbanColumns.map((status) => (
+            <div key={status} style={{ background: "#ffffff", borderRadius: "12px", border: "1px solid #e5e7eb", padding: "16px" }}>
+              <div style={{ fontWeight: "700", marginBottom: "12px", color: "#111827" }}>{status}</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                {groupedReceipts[status].map((receipt) => (
+                  <div key={receipt.id} style={{ border: "1px solid #e5e7eb", borderRadius: "10px", padding: "12px" }}>
+                    <div style={{ fontWeight: "600", marginBottom: "6px" }}>{receipt.id}</div>
+                    <div style={{ fontSize: "13px", color: "#6b7280" }}>{receipt.supplier}</div>
+                    <div style={{ fontSize: "13px", color: "#111827" }}>{receipt.product}</div>
+                    <div style={{ fontSize: "12px", color: "#6b7280", marginTop: "6px" }}>Expected: {receipt.expected}</div>
+                    <button
+                      onClick={() => handleOpenReceipt(receipt)}
+                      style={{ ...commonStyles.btnSecondary, padding: "4px 10px", fontSize: "12px", marginTop: "10px" }}
+                    >
+                      Open
+                    </button>
+                  </div>
+                ))}
+                {groupedReceipts[status].length === 0 && (
+                  <div style={{ fontSize: "12px", color: "#9ca3af" }}>No receipts</div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

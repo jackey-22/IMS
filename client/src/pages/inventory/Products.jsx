@@ -135,6 +135,8 @@ export default function Products() {
   const [search, setSearch] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
+  const [editingStockId, setEditingStockId] = useState(null);
+  const [draftStock, setDraftStock] = useState('');
 
   // Sample products data
   const [products, setProducts] = useState([
@@ -162,6 +164,23 @@ export default function Products() {
 
   const handleDeleteProduct = (id) => {
     setProducts(products.filter(p => p.id !== id));
+  };
+
+  const startStockEdit = (product) => {
+    setEditingStockId(product.id);
+    setDraftStock(String(product.stock));
+  };
+
+  const cancelStockEdit = () => {
+    setEditingStockId(null);
+    setDraftStock('');
+  };
+
+  const saveStockEdit = (product) => {
+    const nextStock = Number(draftStock);
+    if (Number.isNaN(nextStock) || nextStock < 0) return;
+    setProducts(products.map((p) => (p.id === product.id ? { ...p, stock: nextStock } : p)));
+    cancelStockEdit();
   };
 
   return (
@@ -221,18 +240,54 @@ export default function Products() {
                   <td className="px-6 py-3 font-mono text-xs font-medium text-ink-soft">{product.sku}</td>
                   <td className="px-6 py-3 text-ink">{product.category}</td>
                   <td className="px-6 py-3 text-center text-ink">{product.uom}</td>
-                  <td className="px-6 py-3 text-right font-medium text-ink">{product.stock.toLocaleString()}</td>
+                  <td className="px-6 py-3 text-right">
+                    {editingStockId === product.id ? (
+                      <input
+                        type="number"
+                        value={draftStock}
+                        onChange={(e) => setDraftStock(e.target.value)}
+                        className="w-24 px-2 py-1 border border-line rounded-md bg-surface text-ink text-sm text-right"
+                      />
+                    ) : (
+                      <span className="font-medium text-ink">{product.stock.toLocaleString()}</span>
+                    )}
+                  </td>
                   <td className="px-6 py-3 text-right text-ink-soft">{product.reorderPoint}</td>
                   <td className="px-6 py-3">
                     <StatusBadge status={product.status} />
                   </td>
                   <td className="px-6 py-3 text-center">
                     <div className="flex items-center justify-center gap-2">
+                      {editingStockId === product.id ? (
+                        <>
+                          <button
+                            onClick={() => saveStockEdit(product)}
+                            className="p-1 text-ink-soft hover:text-green-600 transition-colors"
+                          >
+                            <Check className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={cancelStockEdit}
+                            className="p-1 text-ink-soft hover:text-red-600 transition-colors"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          onClick={() => startStockEdit(product)}
+                          title="Update stock"
+                          className="p-1 text-ink-soft hover:text-blue-600 transition-colors"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                      )}
                       <button
                         onClick={() => {
                           setEditingProduct(product);
                           setModalOpen(true);
                         }}
+                        title="Edit product"
                         className="p-1 text-ink-soft hover:text-blue-600 transition-colors"
                       >
                         <Edit className="w-4 h-4" />

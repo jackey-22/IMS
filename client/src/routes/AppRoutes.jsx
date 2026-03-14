@@ -26,6 +26,7 @@ import Suppliers from "../pages/inventory/Suppliers.jsx";
 import Profile from "../pages/inventory/Profile.jsx";
 import WarehouseSettingsPage from "../pages/admin/WarehouseSettingsPage.jsx";
 import ProfilePage from "../pages/shared/ProfilePage.jsx";
+import InventoryLayout from "../components/inventory/InventoryLayout.jsx";
 
 function ProtectedRoute() {
   const { session } = useAuth();
@@ -68,14 +69,6 @@ function InventoryManagerRoute() {
   if (!session) return <Navigate to="/login" replace />;
   if (session.user?.role !== "inventory_manager") return <Navigate to="/dashboard" replace />;
   return <Outlet />;
-}
-
-function InventoryLayout() {
-  return (
-    <div className="min-h-screen bg-bg">
-      <Outlet />
-    </div>
-  );
 }
 
 export default function AppRoutes() {

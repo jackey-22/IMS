@@ -1,4 +1,19 @@
-const API_BASES = ["/api/auth", "http://localhost:4000/api/auth", "http://localhost:5051/api/auth"];
+const normalizeBase = (value) => (value ? value.trim().replace(/\/+$/, "") : "");
+const createAuthBase = (value) => {
+  const cleaned = normalizeBase(value);
+  if (!cleaned) return null;
+  if (cleaned.endsWith("/api/auth")) return cleaned;
+  if (cleaned.endsWith("/api")) return `${cleaned}/auth`;
+  return `${cleaned}/api/auth`;
+};
+
+const ENV_AUTH_BASE = createAuthBase(import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_URL);
+const API_BASES = [
+  ENV_AUTH_BASE,
+  "/api/auth",
+  "http://localhost:4000/api/auth",
+  "http://localhost:5051/api/auth"
+].filter(Boolean);
 
 export const passwordHint = "9+ chars with uppercase, lowercase, and special character.";
 

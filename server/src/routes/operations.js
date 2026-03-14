@@ -117,6 +117,51 @@ router.get("/stock", async (req, res) => {
   }
 });
 
+// GET /api/operations/stock-ledger
+router.get("/stock-ledger", async (req, res) => {
+  try {
+    const entries = await StockLedger.find({})
+      .populate("productId", "name sku")
+      .populate("warehouseId", "name code locations")
+      .populate("documentId", "documentNo")
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const result = entries.map((entry) => {
+      const warehouse = entry.warehouseId;
+      const locationId = entry.locationId ? entry.locationId.toString() : null;
+      const location = locationId
+        ? (warehouse?.locations || []).find((loc) => loc._id.toString() === locationId)
+        : null;
+      const warehouseLabel = warehouse ? `${warehouse.name} (${warehouse.code})` : "";
+      const locationLabel = location ? `${location.name} (${location.code})` : "";
+
+      return {
+        id: entry._id,
+        date: entry.createdAt ? new Date(entry.createdAt).toISOString().slice(0, 10) : "",
+        type: entry.type,
+        documentNo: entry.documentId?.documentNo || "",
+        productId: entry.productId?._id?.toString() || null,
+        product: entry.productId?.name || "Unknown",
+        sku: entry.productId?.sku || "",
+        qtyIn: Number(entry.qtyIn) || 0,
+        qtyOut: Number(entry.qtyOut) || 0,
+        balance: Number(entry.balanceAfter) || 0,
+        warehouseId: warehouse?._id?.toString() || null,
+        warehouseName: warehouseLabel,
+        locationId: locationId || null,
+        locationName: locationLabel,
+        warehouse: locationLabel ? `${warehouseLabel} - ${locationLabel}` : warehouseLabel,
+      };
+    });
+
+    return res.json(result);
+  } catch (error) {
+    console.error("List stock ledger failed", error);
+    return res.status(500).json({ message: "List stock ledger failed" });
+  }
+});
+
 // GET /api/operations/receipts
 router.get("/receipts", async (req, res) => {
   try {

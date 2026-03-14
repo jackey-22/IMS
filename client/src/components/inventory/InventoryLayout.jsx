@@ -41,8 +41,12 @@ export default function InventoryLayout() {
     navigate("/login", { replace: true });
   };
 
-  const userName = session?.user?.name || "Inventory Manager";
-  const userRoleLabel = session?.user?.role ? session.user.role.replace("_", " ") : "Inventory Manager";
+  const userName = session?.user?.name || "Manager";
+  const userRoleLabel = session?.user?.role === "inventory_manager"
+    ? "Manager"
+    : session?.user?.role
+      ? session.user.role.replace("_", " ")
+      : "Manager";
   const initials = userName
     .split(" ")
     .filter(Boolean)
@@ -239,7 +243,7 @@ export default function InventoryLayout() {
       <aside style={styles.sidebar}>
         <div style={styles.sidebarHeader}>
           <div style={styles.avatar("32px", "white", "#3b82f6")}>IMS</div>
-          <h2 style={{ fontSize: "20px", fontWeight: "800", margin: 0 }}>Inventory</h2>
+          <h2 style={{ fontSize: "20px", fontWeight: "800", margin: 0 }}>Manager</h2>
         </div>
 
         <nav style={styles.sidebarNav}>

@@ -57,3 +57,6 @@ export const createTransferApi = (token, body) =>
     headers: authHeaders(token),
     body: JSON.stringify(body),
   }).then(handleResponse);
+
+export const listStockLedger = (token) =>
+  fetch(`${API_BASE}/stock-ledger`, { headers: authHeaders(token) }).then(handleResponse);

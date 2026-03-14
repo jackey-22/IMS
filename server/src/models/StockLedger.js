@@ -14,7 +14,7 @@ const stockLedgerSchema = new mongoose.Schema(
     },
     locationId: {
       type: mongoose.Schema.Types.ObjectId,
-      required: true
+      default: null
     },
     documentId: {
       type: mongoose.Schema.Types.ObjectId,

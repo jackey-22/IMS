@@ -14,7 +14,7 @@ const stockBalanceSchema = new mongoose.Schema(
     },
     locationId: {
       type: mongoose.Schema.Types.ObjectId,
-      required: true
+      default: null
     },
     qtyOnHand: {
       type: Number,

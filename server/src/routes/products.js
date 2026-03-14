@@ -1,11 +1,51 @@
 import { Router } from "express";
 import Product from "../models/Product.js";
+import StockBalance from "../models/StockBalance.js";
 
 const router = Router();
 
+async function getOnHandMap(productIds) {
+  if (!productIds.length) {
+    return new Map();
+  }
+
+  const balances = await StockBalance.aggregate([
+    {
+      $match: {
+        productId: {
+          $in: productIds,
+        },
+      },
+    },
+    {
+      $group: {
+        _id: "$productId",
+        qtyOnHand: {
+          $sum: "$qtyOnHand",
+        },
+      },
+    },
+  ]);
+
+  return new Map(
+    balances.map((item) => [item._id.toString(), Number(item.qtyOnHand) || 0])
+  );
+}
+
 router.post("/", async (req, res) => {
   try {
-    const { name, sku, categoryId, uom, description, barcode, reorderPoint, reorderQty, isActive } =
+    const {
+      name,
+      sku,
+      categoryId,
+      uom,
+      initialStock,
+      description,
+      barcode,
+      reorderPoint,
+      reorderQty,
+      isActive
+    } =
       req.body;
 
     if (!name || !sku || !uom) {
@@ -17,6 +57,10 @@ router.post("/", async (req, res) => {
       sku: String(sku).trim(),
       categoryId: categoryId || null,
       uom: String(uom).trim(),
+      initialStock:
+        initialStock === undefined || initialStock === null || initialStock === ""
+          ? 0
+          : Number(initialStock),
       description,
       barcode,
       reorderPoint: reorderPoint ?? 0,
@@ -52,7 +96,20 @@ router.get("/", async (req, res) => {
     }
 
     const products = await Product.find(filter).sort({ createdAt: -1 });
-    return res.json(products);
+    const onHandMap = await getOnHandMap(products.map((product) => product._id));
+
+    return res.json(
+      products.map((product) => {
+        const onHand = onHandMap.has(product._id.toString())
+          ? onHandMap.get(product._id.toString())
+          : product.initialStock;
+
+        return {
+          ...product.toObject(),
+          initialStock: onHand,
+        };
+      })
+    );
   } catch (error) {
     console.error("List products failed", error);
     return res.status(500).json({ message: "List products failed" });
@@ -65,8 +122,15 @@ router.get("/:id", async (req, res) => {
     if (!product) {
       return res.status(404).json({ message: "Product not found" });
     }
+    const onHandMap = await getOnHandMap([product._id]);
+    const onHand = onHandMap.has(product._id.toString())
+      ? onHandMap.get(product._id.toString())
+      : product.initialStock;
 
-    return res.json(product);
+    return res.json({
+      ...product.toObject(),
+      initialStock: onHand,
+    });
   } catch (error) {
     console.error("Get product failed", error);
     return res.status(500).json({ message: "Get product failed" });
@@ -75,7 +139,7 @@ router.get("/:id", async (req, res) => {
 
 router.put("/:id", async (req, res) => {
   try {
-    const updates = req.body;
+    const updates = { ...req.body };
     if (updates.name) {
       updates.name = String(updates.name).trim();
     }
@@ -84,6 +148,12 @@ router.put("/:id", async (req, res) => {
     }
     if (updates.uom) {
       updates.uom = String(updates.uom).trim();
+    }
+    if (Object.prototype.hasOwnProperty.call(updates, "initialStock")) {
+      updates.initialStock =
+        updates.initialStock === undefined || updates.initialStock === null || updates.initialStock === ""
+          ? 0
+          : Number(updates.initialStock);
     }
 
     const product = await Product.findByIdAndUpdate(req.params.id, updates, {
@@ -95,7 +165,18 @@ router.put("/:id", async (req, res) => {
       return res.status(404).json({ message: "Product not found" });
     }
 
-    return res.json(product);
+    const onHandMap = await getOnHandMap([product._id]);
+    const hasBalances = onHandMap.has(product._id.toString());
+
+    if (hasBalances && product.initialStock !== onHandMap.get(product._id.toString())) {
+      product.initialStock = onHandMap.get(product._id.toString());
+      await product.save();
+    }
+
+    return res.json({
+      ...product.toObject(),
+      initialStock: hasBalances ? onHandMap.get(product._id.toString()) : product.initialStock,
+    });
   } catch (error) {
     console.error("Update product failed", error);
     return res.status(500).json({ message: "Update product failed" });

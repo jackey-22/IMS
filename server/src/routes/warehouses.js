@@ -4,7 +4,7 @@ import { authenticate, requireRole } from "../middleware/auth.js";
 
 const router = Router();
 
-router.use(authenticate, requireRole("admin"));
+router.use(authenticate, requireRole("admin", "inventory_manager"));
 
 router.post("/", async (req, res) => {
   try {

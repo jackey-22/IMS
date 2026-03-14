@@ -94,6 +94,10 @@ const inventoryDocSchema = new mongoose.Schema(
       type: Date,
       default: null
     },
+    scheduledDate: {
+      type: Date,
+      default: null
+    },
     lines: {
       type: [lineSchema],
       default: []

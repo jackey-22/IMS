@@ -9,6 +9,7 @@ import warehousesRouter from "./routes/warehouses.js";
 import categoriesRouter from "./routes/categories.js";
 import usersRouter from "./routes/users.js";
 import profileRouter from "./routes/profile.js";
+import operationsRouter from "./routes/operations.js";
 
 dotenv.config();
 
@@ -25,6 +26,7 @@ app.use("/api/warehouses", warehousesRouter);
 app.use("/api/categories", categoriesRouter);
 app.use("/api/users", usersRouter);
 app.use("/api/profile", profileRouter);
+app.use("/api/operations", operationsRouter);
 
 app.use((req, res) => {
   res.status(404).json({ message: "Route not found" });

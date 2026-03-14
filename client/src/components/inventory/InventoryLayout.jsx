@@ -25,6 +25,7 @@ export default function InventoryLayout() {
     { icon: Layers, label: "Categories", path: "/inventory/categories" },
     { icon: Warehouse, label: "Warehouses", path: "/inventory/warehouses" },
     { icon: ClipboardList, label: "Operations", path: "/inventory/operations" },
+    { icon: NotebookText, label: "Stock", path: "/inventory/stock" },
     { icon: NotebookText, label: "Stock Ledger", path: "/inventory/stock-ledger" },
     { icon: FileBarChart2, label: "Reports", path: "/inventory/reports" },
     { icon: Users, label: "Suppliers", path: "/inventory/suppliers" },

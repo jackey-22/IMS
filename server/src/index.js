@@ -8,6 +8,7 @@ import productsRouter from "./routes/products.js";
 import warehousesRouter from "./routes/warehouses.js";
 import categoriesRouter from "./routes/categories.js";
 import usersRouter from "./routes/users.js";
+import profileRouter from "./routes/profile.js";
 
 dotenv.config();
 
@@ -23,6 +24,7 @@ app.use("/api/products", productsRouter);
 app.use("/api/warehouses", warehousesRouter);
 app.use("/api/categories", categoriesRouter);
 app.use("/api/users", usersRouter);
+app.use("/api/profile", profileRouter);
 
 app.use((req, res) => {
   res.status(404).json({ message: "Route not found" });

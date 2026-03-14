@@ -15,7 +15,15 @@ import {
 
 export default function WarehouseLayout() {
   const navigate = useNavigate();
-  const { logout } = useAuth();
+  const { session, logout } = useAuth();
+
+  const fullName = session?.user?.name || "Warehouse User";
+  const initials = fullName
+    .split(" ")
+    .map((w) => w[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
 
   const navItems = [
     { icon: LayoutDashboard, label: "Dashboard", path: "/warehouse/dashboard" },
@@ -225,10 +233,10 @@ export default function WarehouseLayout() {
             
             <div style={styles.userProfile}>
               <div style={{ textAlign: "right", marginRight: "12px" }}>
-                <div style={{ fontSize: "14px", fontWeight: "600", color: "#111827" }}>John Doe</div>
+                <div style={{ fontSize: "14px", fontWeight: "600", color: "#111827" }}>{fullName}</div>
                 <div style={{ fontSize: "12px", color: "#6b7280" }}>Warehouse Staff</div>
               </div>
-              <div style={styles.avatar()}>JD</div>
+              <div style={styles.avatar()}>{initials}</div>
             </div>
           </div>
         </header>

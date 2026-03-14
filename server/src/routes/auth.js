@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import validator from "validator";
 import User from "../models/User.js";
 import PasswordResetOtp from "../models/PasswordResetOtp.js";
+import Notification from "../models/Notification.js";
 import { isEmailConfigured, sendResetOtpEmail } from "../utils/email.js";
 import { signToken, sanitizeUser } from "../utils/jwt.js";
 
@@ -90,6 +91,24 @@ router.post("/register", async (req, res) => {
     });
 
     const token = signToken(user);
+
+    // Notify all admins about the new user signup
+    try {
+      const admins = await User.find({ role: "admin", isActive: true }).select("_id").lean();
+      if (admins.length > 0) {
+        const roleLabel = (role || "inventory_manager").replace("_", " ");
+        const notifications = admins.map((admin) => ({
+          userId: admin._id,
+          title: "👤 New User Registered",
+          message: `${String(name || normalizedLoginId).trim()} (${normalizedLoginId}) signed up as ${roleLabel}`,
+          type: "info",
+          link: "/users",
+        }));
+        await Notification.insertMany(notifications, { ordered: false });
+      }
+    } catch (notifErr) {
+      console.error("Admin signup notification failed (non-fatal)", notifErr.message);
+    }
 
     return res.status(201).json({
       token,

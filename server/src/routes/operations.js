@@ -4,6 +4,8 @@ import StockBalance from "../models/StockBalance.js";
 import StockLedger from "../models/StockLedger.js";
 import Product from "../models/Product.js";
 import Warehouse from "../models/Warehouse.js";
+import Notification from "../models/Notification.js";
+import User from "../models/User.js";
 import { authenticate, requireRole } from "../middleware/auth.js";
 
 const router = Router();
@@ -13,6 +15,27 @@ router.use(authenticate);
 
 function padRef(n) {
   return String(n).padStart(4, "0");
+}
+
+/**
+ * notifyUsers — fan-out an in-app notification to all users with the given roles.
+ * Silently swallows errors so a notification failure never breaks the main request.
+ */
+async function notifyUsers({ roles = [], title, message, type = "info", link = "" }) {
+  try {
+    const recipients = await User.find({ role: { $in: roles }, isActive: true }).select("_id").lean();
+    if (!recipients.length) return;
+    const docs = recipients.map((u) => ({
+      userId: u._id,
+      title: String(title).trim(),
+      message: String(message).trim(),
+      type,
+      link,
+    }));
+    await Notification.insertMany(docs, { ordered: false });
+  } catch (err) {
+    console.error("notifyUsers failed (non-fatal)", err.message);
+  }
 }
 
 async function syncProductOnHand(productId) {
@@ -264,6 +287,15 @@ router.post("/receipts", requireRole("admin", "inventory_manager"), async (req, 
       ],
     });
 
+    // Notify all staff roles about the new receipt
+    notifyUsers({
+      roles: ["admin", "inventory_manager", "warehouse_staff"],
+      title: "📥 New Receipt Created",
+      message: `${documentNo} — ${product.name} × ${quantity} → ${warehouse.name}`,
+      type: "info",
+      link: "/inventory/receipts",
+    });
+
     return res.status(201).json({
       id: doc._id,
       reference: documentNo,
@@ -459,6 +491,15 @@ router.post("/deliveries", requireRole("admin", "inventory_manager"), async (req
           sourceLocationId: null,
         },
       ],
+    });
+
+    // Notify all staff roles about the new delivery
+    notifyUsers({
+      roles: ["admin", "inventory_manager", "warehouse_staff"],
+      title: "📦 New Delivery Created",
+      message: `${documentNo} — ${product.name} × ${quantity} from ${warehouse.name}`,
+      type: "info",
+      link: "/inventory/deliveries",
     });
 
     return res.status(201).json({
@@ -699,28 +740,21 @@ router.post("/transfers", requireRole("admin", "inventory_manager"), async (req,
       }
     }
 
-    // Stock check disabled as per request
-    /*
-    const sourceBalance = await StockBalance.findOne({
+    // Stock check disabled — fetch or create source balance record
+    let sourceBalance = await StockBalance.findOne({
       productId: product._id,
       warehouseId: sourceWarehouse._id,
       locationId: normalizedSourceLocationId,
     });
-
     if (!sourceBalance) {
-      const scopeLabel = normalizedSourceLocationId ? "selected location" : "warehouse level";
-      return res.status(400).json({
-        message: `No stock at ${scopeLabel}. Choose a location that has stock.`,
+      sourceBalance = await StockBalance.create({
+        productId: product._id,
+        warehouseId: sourceWarehouse._id,
+        locationId: normalizedSourceLocationId,
+        qtyOnHand: 0,
+        qtyReserved: 0,
       });
     }
-
-    const available = sourceBalance.qtyOnHand - (sourceBalance.qtyReserved || 0);
-    if (quantity > available) {
-      return res.status(400).json({
-        message: `Insufficient stock at ${sourceWarehouse.name}. Available: ${available}, Requested: ${quantity}.`,
-      });
-    }
-    */
 
     const documentNo = await nextDocumentNo("transfer");
 
@@ -742,6 +776,65 @@ router.post("/transfers", requireRole("admin", "inventory_manager"), async (req,
           destinationLocationId: normalizedDestinationLocationId,
         },
       ],
+    });
+
+    // Subtract from source
+    sourceBalance.qtyOnHand -= quantity;
+    await sourceBalance.save();
+
+    // Add to destination
+    let destinationBalance = await StockBalance.findOne({
+      productId: product._id,
+      warehouseId: destinationWarehouse._id,
+      locationId: normalizedDestinationLocationId,
+    });
+
+
+    if (destinationBalance) {
+      destinationBalance.qtyOnHand += quantity;
+      await destinationBalance.save();
+    } else {
+      destinationBalance = await StockBalance.create({
+        productId: product._id,
+        warehouseId: destinationWarehouse._id,
+        locationId: normalizedDestinationLocationId,
+        qtyOnHand: quantity,
+        qtyReserved: 0,
+      });
+    }
+
+    await StockLedger.create([
+      {
+        productId: product._id,
+        warehouseId: sourceWarehouse._id,
+        locationId: normalizedSourceLocationId,
+        documentId: doc._id,
+        type: "transfer",
+        qtyIn: 0,
+        qtyOut: quantity,
+        balanceAfter: sourceBalance.qtyOnHand,
+      },
+      {
+        productId: product._id,
+        warehouseId: destinationWarehouse._id,
+        locationId: normalizedDestinationLocationId,
+        documentId: doc._id,
+        type: "transfer",
+        qtyIn: quantity,
+        qtyOut: 0,
+        balanceAfter: destinationBalance.qtyOnHand,
+      },
+    ]);
+
+    await syncProductOnHand(product._id);
+
+    // Notify all staff roles about the new internal transfer
+    notifyUsers({
+      roles: ["admin", "inventory_manager", "warehouse_staff"],
+      title: "🔄 New Internal Transfer",
+      message: `${documentNo} — ${product.name} × ${quantity} from ${sourceWarehouse.name} → ${destinationWarehouse.name}`,
+      type: "info",
+      link: "/inventory/transfers",
     });
 
     return res.status(201).json({

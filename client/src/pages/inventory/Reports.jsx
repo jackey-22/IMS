@@ -1,7 +1,23 @@
-import { useState } from 'react';
-import { FileText, TrendingDown, TrendingUp, Package, Warehouse, Calendar } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import {
+  TrendingUp, Package, Warehouse,
+  Download, Filter, Search,
+  ArrowDownToLine, ArrowUpFromLine, ArrowLeftRight,
+  FileText, CheckCircle2, BarChart3, FileBarChart2
+} from 'lucide-react';
+import { useInventoryOps } from '../../context/InventoryOpsContext.jsx';
 
-// Tab Component
+/* ─── helpers ──────────────────────────────────────────────────── */
+const fmt = (n) => Number(n || 0).toLocaleString('en-IN');
+const fmtMoney = (n) => `₹${fmt(n)}`;
+const today = () => new Date().toISOString().slice(0, 10);
+const monthsAgo = (n) => {
+  const d = new Date();
+  d.setMonth(d.getMonth() - n);
+  return d.toISOString().slice(0, 10);
+};
+
+/* ─── sub-components ────────────────────────────────────────────── */
 function Tabs({ tabs, activeTab, setActiveTab }) {
   return (
     <div className="flex gap-1 border-b border-line mb-6 overflow-x-auto">
@@ -9,12 +25,13 @@ function Tabs({ tabs, activeTab, setActiveTab }) {
         <button
           key={tab.id}
           onClick={() => setActiveTab(tab.id)}
-          className={`px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
+          className={`inline-flex items-center gap-2 px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
             activeTab === tab.id
-              ? 'border-blue-600 text-ink'
+              ? 'border-blue-600 text-blue-700'
               : 'border-transparent text-ink-soft hover:text-ink'
           }`}
         >
+          {tab.icon && <tab.icon className="w-4 h-4" />}
           {tab.label}
         </button>
       ))}
@@ -22,82 +39,793 @@ function Tabs({ tabs, activeTab, setActiveTab }) {
   );
 }
 
-// Report Card Component
-function ReportCard({ title, subtitle, value, icon: Icon, color }) {
+function StatCard({ title, subtitle, value, icon: Icon, color, bg }) {
   return (
-    <div className="bg-surface border border-line rounded-lg p-6" style={{ boxShadow: 'var(--shadow-md)' }}>
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h3 className="font-heading font-semibold text-ink">{title}</h3>
-          <p className="text-sm text-ink-soft mt-1">{subtitle}</p>
+    <div className="bg-surface border border-line rounded-xl p-5" style={{ boxShadow: 'var(--shadow-md)' }}>
+      <div className="flex items-start justify-between mb-3">
+        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${bg}`}>
+          <Icon className={`w-5 h-5 ${color}`} />
         </div>
-        <Icon className={`w-6 h-6 ${color}`} />
       </div>
-      <p className="text-3xl font-bold text-ink">{value}</p>
+      <p className="text-2xl font-bold text-ink">{value}</p>
+      <p className="text-sm font-medium text-ink mt-0.5">{title}</p>
+      <p className="text-xs text-ink-soft mt-0.5">{subtitle}</p>
     </div>
   );
 }
 
-// Chart Component
-function ChartBar({ label, value, maxValue, color }) {
-  const percentage = (value / maxValue) * 100;
+function StatusPill({ status }) {
+  const map = {
+    ready: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+    waiting: 'bg-amber-100 text-amber-800 border-amber-200',
+    late: 'bg-rose-100 text-rose-800 border-rose-200',
+    done: 'bg-blue-100 text-blue-800 border-blue-200',
+  };
   return (
-    <div className="space-y-2">
-      <div className="flex justify-between items-center">
-        <span className="text-sm font-medium text-ink">{label}</span>
-        <span className="text-sm font-medium text-ink">{value}</span>
+    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold ${map[status] || map.waiting}`}>
+      {status?.charAt(0).toUpperCase() + status?.slice(1)}
+    </span>
+  );
+}
+
+/* ─── PDF Print helper ──────────────────────────────────────────── */
+function triggerPrint(title, htmlContent) {
+  const win = window.open('', '_blank', 'width=900,height=700');
+  win.document.write(`<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>${title}</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Segoe UI',Arial,sans-serif;color:#111;background:#fff;padding:32px}
+    h1{font-size:22px;font-weight:700;margin-bottom:4px}
+    .meta{font-size:12px;color:#666;margin-bottom:24px;display:flex;gap:24px;flex-wrap:wrap}
+    table{width:100%;border-collapse:collapse;font-size:13px;margin-top:16px}
+    thead th{background:#f0f4ff;padding:8px 12px;text-align:left;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid #c7d2fe;color:#3730a3}
+    tbody td{padding:8px 12px;border-bottom:1px solid #e5e7eb;vertical-align:top}
+    tbody tr:last-child td{border-bottom:none}
+    tbody tr:nth-child(even){background:#fafafa}
+    .badge{display:inline-block;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:600;border:1px solid transparent}
+    .badge-ready{background:#d1fae5;color:#065f46;border-color:#a7f3d0}
+    .badge-waiting{background:#fef3c7;color:#92400e;border-color:#fde68a}
+    .badge-late{background:#fee2e2;color:#991b1b;border-color:#fca5a5}
+    .badge-done{background:#dbeafe;color:#1e40af;border-color:#bfdbfe}
+    .pill-green{color:#065f46;font-weight:700}
+    .pill-red{color:#991b1b;font-weight:700}
+    .summary{display:flex;gap:24px;margin-bottom:20px;flex-wrap:wrap}
+    .summary-item{background:#f0f4ff;border:1px solid #c7d2fe;border-radius:8px;padding:12px 20px;min-width:140px}
+    .summary-item .label{font-size:11px;color:#4f46e5;font-weight:600;text-transform:uppercase}
+    .summary-item .val{font-size:20px;font-weight:700;margin-top:2px}
+    @media print{body{padding:0} button{display:none}}
+    .actions{text-align:right;margin-bottom:20px}
+    .btn{background:#4f46e5;color:#fff;border:none;padding:8px 20px;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px}
+    .btn:hover{background:#4338ca}
+    footer{margin-top:32px;font-size:11px;color:#9ca3af;border-top:1px solid #e5e7eb;padding-top:12px;display:flex;justify-content:space-between}
+  </style>
+</head>
+<body>
+${htmlContent}
+<footer>
+  <span>Generated by IndusIMS — ${new Date().toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' })}</span>
+  <span>Page 1</span>
+</footer>
+<div class="actions"><button class="btn" onclick="window.print()">🖨️ Print / Save as PDF</button></div>
+<script>window.onload=()=>setTimeout(()=>window.print(),400)</script>
+</body></html>`);
+  win.document.close();
+}
+
+/* ─── Documents PDF tab ─────────────────────────────────────────── */
+function DocumentsTab({ receipts, deliveries, transfers, warehouses }) {
+  const [docType, setDocType] = useState('receipts');
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [dateFrom, setDateFrom] = useState(monthsAgo(1));
+  const [dateTo, setDateTo] = useState(today());
+
+  const whMap = useMemo(() => {
+    const m = {};
+    warehouses.forEach(wh => { m[wh._id] = wh.name; });
+    return m;
+  }, [warehouses]);
+
+  const sourceData = docType === 'receipts' ? receipts : docType === 'deliveries' ? deliveries : transfers;
+
+  const filtered = useMemo(() => {
+    return sourceData.filter(item => {
+      const q = search.trim().toLowerCase();
+      const matchSearch = !q || [item.reference, item.contact, item.from, item.to, item.productName]
+        .join(' ').toLowerCase().includes(q);
+      const matchStatus = statusFilter === 'all' || item.status === statusFilter;
+      const itemDate = item.scheduleDate || item.date || '';
+      const matchFrom = !dateFrom || itemDate >= dateFrom;
+      const matchTo = !dateTo || itemDate <= dateTo;
+      return matchSearch && matchStatus && matchFrom && matchTo;
+    });
+  }, [sourceData, search, statusFilter, dateFrom, dateTo]);
+
+  const generatePDF = () => {
+    const label = docType === 'receipts' ? 'Receipts' : docType === 'deliveries' ? 'Deliveries' : 'Internal Transfers';
+    const period = `${dateFrom} to ${dateTo}`;
+    const count = filtered.length;
+
+    let rows = '';
+    let thead = '';
+    let summaryHtml = '';
+
+    if (docType === 'receipts') {
+      const totalQty = filtered.reduce((s, r) => s + Number(r.quantity || 0), 0);
+      summaryHtml = `<div class="summary">
+        <div class="summary-item"><div class="label">Total Records</div><div class="val">${count}</div></div>
+        <div class="summary-item"><div class="label">Total Qty In</div><div class="val">${fmt(totalQty)}</div></div>
+      </div>`;
+      thead = `<tr><th>#</th><th>Reference</th><th>From (Supplier)</th><th>To (Warehouse)</th><th>Contact</th><th>Product</th><th>Qty In</th><th>Schedule Date</th><th>Status</th></tr>`;
+      rows = filtered.map((r, i) => `<tr>
+        <td>${i + 1}</td>
+        <td><b>${r.reference || '-'}</b></td>
+        <td>${r.from || '-'}</td>
+        <td>${r.to || '-'}</td>
+        <td>${r.contact || '-'}</td>
+        <td>${r.productName || '-'}</td>
+        <td class="pill-green">+${fmt(r.quantity)}</td>
+        <td>${r.scheduleDate || '-'}</td>
+        <td><span class="badge badge-${r.status}">${r.status || '-'}</span></td>
+      </tr>`).join('');
+    } else if (docType === 'deliveries') {
+      const totalQty = filtered.reduce((s, d) => s + Number(d.quantity || 0), 0);
+      summaryHtml = `<div class="summary">
+        <div class="summary-item"><div class="label">Total Records</div><div class="val">${count}</div></div>
+        <div class="summary-item"><div class="label">Total Qty Out</div><div class="val">${fmt(totalQty)}</div></div>
+      </div>`;
+      thead = `<tr><th>#</th><th>Reference</th><th>From (Warehouse)</th><th>To (Customer)</th><th>Contact</th><th>Product</th><th>Qty Out</th><th>Schedule Date</th><th>Status</th></tr>`;
+      rows = filtered.map((d, i) => `<tr>
+        <td>${i + 1}</td>
+        <td><b>${d.reference || '-'}</b></td>
+        <td>${d.from || '-'}</td>
+        <td>${d.to || '-'}</td>
+        <td>${d.contact || '-'}</td>
+        <td>${d.productName || '-'}</td>
+        <td class="pill-red">-${fmt(d.quantity)}</td>
+        <td>${d.scheduleDate || '-'}</td>
+        <td><span class="badge badge-${d.status}">${d.status || '-'}</span></td>
+      </tr>`).join('');
+    } else {
+      const totalQty = filtered.reduce((s, t) => s + Number(t.quantity || 0), 0);
+      summaryHtml = `<div class="summary">
+        <div class="summary-item"><div class="label">Total Records</div><div class="val">${count}</div></div>
+        <div class="summary-item"><div class="label">Total Qty Moved</div><div class="val">${fmt(totalQty)}</div></div>
+      </div>`;
+      thead = `<tr><th>#</th><th>Reference</th><th>From</th><th>To</th><th>Product</th><th>Qty</th><th>Schedule Date</th><th>Status</th></tr>`;
+      rows = filtered.map((t, i) => `<tr>
+        <td>${i + 1}</td>
+        <td><b>${t.reference || '-'}</b></td>
+        <td>${t.from || '-'}</td>
+        <td>${t.to || '-'}</td>
+        <td>${t.productName || '-'}</td>
+        <td>${fmt(t.quantity)}</td>
+        <td>${t.scheduleDate || '-'}</td>
+        <td><span class="badge badge-${t.status}">${t.status || '-'}</span></td>
+      </tr>`).join('');
+    }
+
+    if (!rows) {
+      rows = `<tr><td colspan="9" style="text-align:center;padding:24px;color:#9ca3af">No records match the selected filters.</td></tr>`;
+    }
+
+    const html = `
+      <div class="actions"><button class="btn" onclick="window.print()">🖨️ Print / Save as PDF</button></div>
+      <h1>${label} Report</h1>
+      <div class="meta">
+        <span>📅 Period: ${period}</span>
+        <span>📊 Records: ${count}</span>
+        <span>🔽 Status: ${statusFilter === 'all' ? 'All' : statusFilter}</span>
       </div>
-      <div className="h-2 bg-surface-soft rounded-full overflow-hidden">
-        <div 
-          className="h-full rounded-full transition-all" 
-          style={{ 
-            width: `${percentage}%`,
-            backgroundColor: color
-          }}
+      ${summaryHtml}
+      <table><thead>${thead}</thead><tbody>${rows || '<tr><td colspan="9" style="text-align:center;padding:24px;color:#9ca3af;">No data</td></tr>'}</tbody></table>
+    `;
+    triggerPrint(`${label} Report — ${period}`, html);
+  };
+
+  const docTypes = [
+    { id: 'receipts', label: 'Receipts', icon: ArrowDownToLine, color: 'text-emerald-700', bg: 'bg-emerald-50' },
+    { id: 'deliveries', label: 'Deliveries', icon: ArrowUpFromLine, color: 'text-rose-700', bg: 'bg-rose-50' },
+    { id: 'transfers', label: 'Internal Transfers', icon: ArrowLeftRight, color: 'text-blue-700', bg: 'bg-blue-50' },
+  ];
+
+  const statuses = docType === 'transfers'
+    ? ['all', 'ready', 'waiting', 'done']
+    : ['all', 'ready', 'waiting', 'late'];
+
+  return (
+    <div className="space-y-6">
+      {/* Doc type selector */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {docTypes.map(dt => (
+          <button
+            key={dt.id}
+            onClick={() => { setDocType(dt.id); setStatusFilter('all'); }}
+            className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-all text-left ${
+              docType === dt.id
+                ? 'border-blue-500 bg-blue-50'
+                : 'border-line bg-surface hover:border-blue-200 hover:bg-surface-soft'
+            }`}
+          >
+            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${dt.bg}`}>
+              <dt.icon className={`w-5 h-5 ${dt.color}`} />
+            </div>
+            <div>
+              <p className={`font-semibold text-sm ${docType === dt.id ? 'text-blue-700' : 'text-ink'}`}>{dt.label}</p>
+              <p className="text-xs text-ink-soft">{sourceData.length} record{sourceData.length !== 1 ? 's' : ''}</p>
+            </div>
+          </button>
+        ))}
+      </div>
+
+      {/* Filters */}
+      <div className="bg-surface border border-line rounded-xl p-4" style={{ boxShadow: 'var(--shadow-md)' }}>
+        <div className="flex items-center gap-2 mb-3">
+          <Filter className="w-4 h-4 text-ink-soft" />
+          <span className="text-sm font-semibold text-ink">Filters</span>
+          <span className="text-xs text-ink-soft ml-auto">{filtered.length} matching records</span>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-soft pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Search..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="w-full rounded-lg border border-line bg-surface pl-9 pr-3 py-2 text-sm text-ink outline-none focus:border-blue-500"
+            />
+          </div>
+          <select
+            value={statusFilter}
+            onChange={e => setStatusFilter(e.target.value)}
+            className="rounded-lg border border-line bg-surface px-3 py-2 text-sm text-ink"
+          >
+            {statuses.map(s => (
+              <option key={s} value={s}>{s === 'all' ? 'All Statuses' : s.charAt(0).toUpperCase() + s.slice(1)}</option>
+            ))}
+          </select>
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-ink-soft whitespace-nowrap">From</label>
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={e => setDateFrom(e.target.value)}
+              className="flex-1 rounded-lg border border-line bg-surface px-2 py-2 text-sm text-ink"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-ink-soft whitespace-nowrap">To</label>
+            <input
+              type="date"
+              value={dateTo}
+              onChange={e => setDateTo(e.target.value)}
+              className="flex-1 rounded-lg border border-line bg-surface px-2 py-2 text-sm text-ink"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Preview table */}
+      <div className="bg-surface border border-line rounded-xl overflow-hidden" style={{ boxShadow: 'var(--shadow-md)' }}>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-line">
+          <h3 className="font-semibold text-ink">
+            {docType === 'receipts' ? 'Receipts' : docType === 'deliveries' ? 'Deliveries' : 'Internal Transfers'} Preview
+          </h3>
+          <button
+            onClick={generatePDF}
+            className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
+          >
+            <Download className="w-4 h-4" />
+            Generate PDF
+          </button>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-surface-soft border-b border-line text-ink-soft text-xs uppercase">
+                {docType === 'receipts' && <>
+                  <th className="px-4 py-3 text-left font-semibold">Reference</th>
+                  <th className="px-4 py-3 text-left font-semibold">From</th>
+                  <th className="px-4 py-3 text-left font-semibold">To</th>
+                  <th className="px-4 py-3 text-left font-semibold">Contact</th>
+                  <th className="px-4 py-3 text-left font-semibold">Product</th>
+                  <th className="px-4 py-3 text-right font-semibold">Qty In</th>
+                  <th className="px-4 py-3 text-left font-semibold">Date</th>
+                  <th className="px-4 py-3 text-left font-semibold">Status</th>
+                </>}
+                {docType === 'deliveries' && <>
+                  <th className="px-4 py-3 text-left font-semibold">Reference</th>
+                  <th className="px-4 py-3 text-left font-semibold">From</th>
+                  <th className="px-4 py-3 text-left font-semibold">To</th>
+                  <th className="px-4 py-3 text-left font-semibold">Contact</th>
+                  <th className="px-4 py-3 text-left font-semibold">Product</th>
+                  <th className="px-4 py-3 text-right font-semibold">Qty Out</th>
+                  <th className="px-4 py-3 text-left font-semibold">Date</th>
+                  <th className="px-4 py-3 text-left font-semibold">Status</th>
+                </>}
+                {docType === 'transfers' && <>
+                  <th className="px-4 py-3 text-left font-semibold">Reference</th>
+                  <th className="px-4 py-3 text-left font-semibold">From</th>
+                  <th className="px-4 py-3 text-left font-semibold">To</th>
+                  <th className="px-4 py-3 text-left font-semibold">Product</th>
+                  <th className="px-4 py-3 text-right font-semibold">Qty</th>
+                  <th className="px-4 py-3 text-left font-semibold">Date</th>
+                  <th className="px-4 py-3 text-left font-semibold">Status</th>
+                </>}
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.slice(0, 50).map((item, i) => (
+                <tr key={item.id || i} className="border-b border-line last:border-0 hover:bg-surface-soft/50">
+                  {docType === 'receipts' && <>
+                    <td className="px-4 py-3 font-mono text-xs font-semibold text-ink">{item.reference}</td>
+                    <td className="px-4 py-3 text-ink-soft">{item.from || '—'}</td>
+                    <td className="px-4 py-3 text-ink">{item.to || '—'}</td>
+                    <td className="px-4 py-3 text-ink">{item.contact || '—'}</td>
+                    <td className="px-4 py-3 text-ink">{item.productName || '—'}</td>
+                    <td className="px-4 py-3 text-right font-semibold text-emerald-700">+{fmt(item.quantity)}</td>
+                    <td className="px-4 py-3 text-ink-soft text-xs">{item.scheduleDate || '—'}</td>
+                    <td className="px-4 py-3"><StatusPill status={item.status} /></td>
+                  </>}
+                  {docType === 'deliveries' && <>
+                    <td className="px-4 py-3 font-mono text-xs font-semibold text-ink">{item.reference}</td>
+                    <td className="px-4 py-3 text-ink">{item.from || '—'}</td>
+                    <td className="px-4 py-3 text-ink-soft">{item.to || '—'}</td>
+                    <td className="px-4 py-3 text-ink">{item.contact || '—'}</td>
+                    <td className="px-4 py-3 text-ink">{item.productName || '—'}</td>
+                    <td className="px-4 py-3 text-right font-semibold text-rose-700">-{fmt(item.quantity)}</td>
+                    <td className="px-4 py-3 text-ink-soft text-xs">{item.scheduleDate || '—'}</td>
+                    <td className="px-4 py-3"><StatusPill status={item.status} /></td>
+                  </>}
+                  {docType === 'transfers' && <>
+                    <td className="px-4 py-3 font-mono text-xs font-semibold text-ink">{item.reference}</td>
+                    <td className="px-4 py-3 text-ink">{item.from || '—'}</td>
+                    <td className="px-4 py-3 text-ink">{item.to || '—'}</td>
+                    <td className="px-4 py-3 text-ink">{item.productName || '—'}</td>
+                    <td className="px-4 py-3 text-right font-semibold text-blue-700">{fmt(item.quantity)}</td>
+                    <td className="px-4 py-3 text-ink-soft text-xs">{item.scheduleDate || '—'}</td>
+                    <td className="px-4 py-3"><StatusPill status={item.status} /></td>
+                  </>}
+                </tr>
+              ))}
+              {filtered.length === 0 && (
+                <tr>
+                  <td colSpan={8} className="px-4 py-12 text-center text-ink-soft">
+                    <FileText className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                    <p>No records match filters. Try adjusting the date range or status.</p>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+          {filtered.length > 50 && (
+            <p className="px-4 py-2 text-xs text-ink-soft border-t border-line">
+              Showing 50 of {filtered.length} records. The PDF will include all {filtered.length} records.
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Low Stock tab (real data) ─────────────────────────────────── */
+function LowStockTab({ stock }) {
+  const lowStockItems = useMemo(() =>
+    stock
+      .filter(s => s.onHand <= s.reorderPoint || s.onHand === 0)
+      .sort((a, b) => a.onHand - b.onHand),
+    [stock]
+  );
+
+  const outOfStock = lowStockItems.filter(s => s.onHand === 0);
+  const belowReorder = lowStockItems.filter(s => s.onHand > 0 && s.onHand <= s.reorderPoint);
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <StatCard
+          title="Critical Items"
+          subtitle="Out of stock right now"
+          value={outOfStock.length}
+          icon={AlertTriangle}
+          color="text-rose-600"
+          bg="bg-rose-50"
+        />
+        <StatCard
+          title="Low Stock"
+          subtitle="Below reorder point"
+          value={belowReorder.length}
+          icon={TrendingDown}
+          color="text-amber-600"
+          bg="bg-amber-50"
+        />
+        <StatCard
+          title="Total Alerts"
+          subtitle="Require attention"
+          value={lowStockItems.length}
+          icon={Package}
+          color="text-blue-600"
+          bg="bg-blue-50"
         />
       </div>
+
+      <div className="bg-surface border border-line rounded-xl overflow-hidden" style={{ boxShadow: 'var(--shadow-md)' }}>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-line">
+          <h3 className="font-semibold text-ink">Low Stock Items</h3>
+          <button
+            onClick={() => {
+              const rows = lowStockItems.map((item, i) => `<tr>
+                <td>${i + 1}</td>
+                <td><b>${item.product || item.name || '—'}</b></td>
+                <td style="font-family:monospace">${item.sku || '—'}</td>
+                <td>${item.category || '—'}</td>
+                <td style="color:${item.onHand === 0 ? '#991b1b' : '#92400e'};font-weight:700">${item.onHand}</td>
+                <td>${item.reorderPoint || 0}</td>
+                <td><span class="badge ${item.onHand === 0 ? 'badge-late' : 'badge-waiting'}">${item.onHand === 0 ? 'Out of Stock' : 'Low Stock'}</span></td>
+              </tr>`).join('');
+              triggerPrint('Low Stock Alert Report', `
+                <h1>Low Stock Alert Report</h1>
+                <div class="meta"><span>📅 Generated: ${new Date().toLocaleDateString('en-IN')}</span><span>📊 Total Alerts: ${lowStockItems.length}</span></div>
+                <div class="summary">
+                  <div class="summary-item"><div class="label">Out of Stock</div><div class="val" style="color:#991b1b">${outOfStock.length}</div></div>
+                  <div class="summary-item"><div class="label">Low Stock</div><div class="val" style="color:#92400e">${belowReorder.length}</div></div>
+                </div>
+                <table><thead><tr><th>#</th><th>Product</th><th>SKU</th><th>Category</th><th>Current Qty</th><th>Reorder Point</th><th>Alert Level</th></tr></thead>
+                <tbody>${rows || '<tr><td colspan="7" style="text-align:center;padding:24px;color:#9ca3af">No low stock items 🎉</td></tr>'}</tbody></table>`);
+            }}
+            className="inline-flex items-center gap-2 rounded-lg border border-line px-3 py-1.5 text-sm font-medium text-ink hover:bg-surface-soft transition-colors"
+          >
+            <Download className="w-4 h-4" /> Export PDF
+          </button>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-surface-soft border-b border-line text-ink-soft text-xs uppercase">
+                <th className="px-4 py-3 text-left font-semibold">Product</th>
+                <th className="px-4 py-3 text-left font-semibold">SKU</th>
+                <th className="px-4 py-3 text-left font-semibold">Category</th>
+                <th className="px-4 py-3 text-center font-semibold">Current</th>
+                <th className="px-4 py-3 text-center font-semibold">Reorder Point</th>
+                <th className="px-4 py-3 text-left font-semibold">Alert</th>
+                <th className="px-4 py-3 text-left font-semibold">Stock Bar</th>
+              </tr>
+            </thead>
+            <tbody>
+              {lowStockItems.map((item, i) => {
+                const max = Math.max(item.reorderPoint || 1, item.onHand, 1);
+                const pct = Math.min((item.onHand / max) * 100, 100);
+                const isOut = item.onHand === 0;
+                return (
+                  <tr key={i} className="border-b border-line last:border-0 hover:bg-surface-soft/50">
+                    <td className="px-4 py-3 font-medium text-ink">{item.product || item.name || '—'}</td>
+                    <td className="px-4 py-3 font-mono text-xs text-ink-soft">{item.sku || '—'}</td>
+                    <td className="px-4 py-3 text-ink-soft">{item.category || '—'}</td>
+                    <td className="px-4 py-3 text-center font-bold" style={{ color: isOut ? '#991b1b' : '#92400e' }}>
+                      {item.onHand}
+                    </td>
+                    <td className="px-4 py-3 text-center text-ink-soft">{item.reorderPoint || 0}</td>
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-full border ${isOut ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
+                        {isOut ? <><AlertTriangle className="w-3 h-3" /> Out of Stock</> : <><Clock className="w-3 h-3" /> Low Stock</>}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 min-w-[120px]">
+                      <div className="h-2 bg-surface-soft rounded-full overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all"
+                          style={{ width: `${pct}%`, backgroundColor: isOut ? '#ef4444' : '#f59e0b' }}
+                        />
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+              {lowStockItems.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="px-4 py-12 text-center">
+                    <CheckCircle2 className="w-10 h-10 mx-auto mb-2 text-emerald-400" />
+                    <p className="text-ink-soft">All products are above reorder points 🎉</p>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 }
 
+/* ─── Product Movement tab (real data) ─────────────────────────── */
+function MovementTab({ receipts, deliveries, transfers }) {
+  const productMovement = useMemo(() => {
+    const map = {};
+    receipts.forEach(r => {
+      const key = r.productName || 'Unknown';
+      if (!map[key]) map[key] = { product: key, receipts: 0, deliveries: 0, transfers: 0, totalQty: 0 };
+      map[key].receipts += Number(r.quantity || 0);
+      map[key].totalQty += Number(r.quantity || 0);
+    });
+    deliveries.forEach(d => {
+      const key = d.productName || 'Unknown';
+      if (!map[key]) map[key] = { product: key, receipts: 0, deliveries: 0, transfers: 0, totalQty: 0 };
+      map[key].deliveries += Number(d.quantity || 0);
+      map[key].totalQty += Number(d.quantity || 0);
+    });
+    transfers.forEach(t => {
+      const key = t.productName || 'Unknown';
+      if (!map[key]) map[key] = { product: key, receipts: 0, deliveries: 0, transfers: 0, totalQty: 0 };
+      map[key].transfers += Number(t.quantity || 0);
+      map[key].totalQty += Number(t.quantity || 0);
+    });
+    return Object.values(map).sort((a, b) => b.totalQty - a.totalQty);
+  }, [receipts, deliveries, transfers]);
+
+  const maxQty = productMovement[0]?.totalQty || 1;
+  const totalReceipts = receipts.reduce((s, r) => s + Number(r.quantity || 0), 0);
+  const totalDeliveries = deliveries.reduce((s, d) => s + Number(d.quantity || 0), 0);
+  const totalTransfers = transfers.reduce((s, t) => s + Number(t.quantity || 0), 0);
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <StatCard title="Total Received" subtitle="All receipt qty" value={fmt(totalReceipts)} icon={ArrowDownToLine} color="text-emerald-600" bg="bg-emerald-50" />
+        <StatCard title="Total Delivered" subtitle="All delivery qty" value={fmt(totalDeliveries)} icon={ArrowUpFromLine} color="text-rose-600" bg="bg-rose-50" />
+        <StatCard title="Total Transferred" subtitle="Internal movements" value={fmt(totalTransfers)} icon={ArrowLeftRight} color="text-blue-600" bg="bg-blue-50" />
+      </div>
+
+      <div className="bg-surface border border-line rounded-xl overflow-hidden" style={{ boxShadow: 'var(--shadow-md)' }}>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-line">
+          <h3 className="font-semibold text-ink">Product Movement Summary</h3>
+          <button
+            onClick={() => {
+              const rows = productMovement.map((p, i) => `<tr>
+                <td>${i + 1}</td><td><b>${p.product}</b></td>
+                <td class="pill-green">+${fmt(p.receipts)}</td>
+                <td class="pill-red">-${fmt(p.deliveries)}</td>
+                <td>${fmt(p.transfers)}</td>
+                <td><b>${fmt(p.totalQty)}</b></td>
+              </tr>`).join('');
+              triggerPrint('Product Movement Report', `
+                <h1>Product Movement Report</h1>
+                <div class="meta"><span>📅 ${new Date().toLocaleDateString('en-IN')}</span></div>
+                <div class="summary">
+                  <div class="summary-item"><div class="label">Total Received</div><div class="val" style="color:#065f46">+${fmt(totalReceipts)}</div></div>
+                  <div class="summary-item"><div class="label">Total Delivered</div><div class="val" style="color:#991b1b">-${fmt(totalDeliveries)}</div></div>
+                  <div class="summary-item"><div class="label">Transferred</div><div class="val">${fmt(totalTransfers)}</div></div>
+                </div>
+                <table><thead><tr><th>#</th><th>Product</th><th>Receipts (+)</th><th>Deliveries (-)</th><th>Transfers</th><th>Total Moved</th></tr></thead>
+                <tbody>${rows || '<tr><td colspan="6" style="text-align:center;padding:24px;color:#9ca3af">No movement data</td></tr>'}</tbody></table>`);
+            }}
+            className="inline-flex items-center gap-2 rounded-lg border border-line px-3 py-1.5 text-sm font-medium text-ink hover:bg-surface-soft"
+          >
+            <Download className="w-4 h-4" /> Export PDF
+          </button>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-surface-soft border-b border-line text-ink-soft text-xs uppercase">
+                <th className="px-4 py-3 text-left font-semibold">Product</th>
+                <th className="px-4 py-3 text-right font-semibold">Receipts</th>
+                <th className="px-4 py-3 text-right font-semibold">Deliveries</th>
+                <th className="px-4 py-3 text-right font-semibold">Transfers</th>
+                <th className="px-4 py-3 text-right font-semibold">Total</th>
+                <th className="px-4 py-3 text-left font-semibold w-40">Activity</th>
+              </tr>
+            </thead>
+            <tbody>
+              {productMovement.map((item, i) => (
+                <tr key={i} className="border-b border-line last:border-0 hover:bg-surface-soft/50">
+                  <td className="px-4 py-3 font-medium text-ink">{item.product}</td>
+                  <td className="px-4 py-3 text-right font-semibold text-emerald-700">+{fmt(item.receipts)}</td>
+                  <td className="px-4 py-3 text-right font-semibold text-rose-700">-{fmt(item.deliveries)}</td>
+                  <td className="px-4 py-3 text-right text-blue-700">{fmt(item.transfers)}</td>
+                  <td className="px-4 py-3 text-right font-bold text-ink">{fmt(item.totalQty)}</td>
+                  <td className="px-4 py-3">
+                    <div className="h-2 bg-surface-soft rounded-full overflow-hidden">
+                      <div className="h-full rounded-full bg-blue-500" style={{ width: `${(item.totalQty / maxQty) * 100}%` }} />
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {productMovement.length === 0 && (
+                <tr><td colSpan={6} className="px-4 py-12 text-center text-ink-soft">No movement data available.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Warehouse Distribution tab (real data) ────────────────────── */
+function WarehouseTab({ stock, warehouses }) {
+  const warehouseStats = useMemo(() => {
+    const map = {};
+    warehouses.forEach(wh => {
+      map[wh._id] = { id: wh._id, name: wh.name, code: wh.code, onHand: 0, products: 0 };
+    });
+    stock.forEach(s => {
+      (s.warehouses || []).forEach(wh => {
+        if (map[wh.warehouseId]) {
+          map[wh.warehouseId].onHand += Number(wh.onHand || 0);
+          if (wh.onHand > 0) map[wh.warehouseId].products += 1;
+        }
+      });
+    });
+    const result = Object.values(map).sort((a, b) => b.onHand - a.onHand);
+    const total = result.reduce((s, wh) => s + wh.onHand, 0);
+    return result.map(wh => ({ ...wh, percentage: total > 0 ? Math.round((wh.onHand / total) * 100) : 0, total }));
+  }, [stock, warehouses]);
+
+  const totalStock = warehouseStats.reduce((s, wh) => s + wh.onHand, 0);
+  const colors = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#06b6d4'];
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <StatCard title="Total Stock" subtitle="Across all warehouses" value={fmt(totalStock)} icon={Package} color="text-blue-600" bg="bg-blue-50" />
+        <StatCard title="Warehouses" subtitle="Active locations" value={warehouses.length} icon={Warehouse} color="text-emerald-600" bg="bg-emerald-50" />
+        <StatCard title="Products" subtitle="Tracked across system" value={stock.length} icon={BarChart3} color="text-purple-600" bg="bg-purple-50" />
+      </div>
+
+      <div className="bg-surface border border-line rounded-xl overflow-hidden" style={{ boxShadow: 'var(--shadow-md)' }}>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-line">
+          <h3 className="font-semibold text-ink">Stock by Warehouse</h3>
+          <button
+            onClick={() => {
+              const rows = warehouseStats.map((wh, i) => `<tr>
+                <td>${i + 1}</td><td><b>${wh.name}</b></td><td>${wh.code || '—'}</td>
+                <td><b>${fmt(wh.onHand)}</b></td><td>${wh.percentage}%</td><td>${wh.products}</td>
+              </tr>`).join('');
+              triggerPrint('Warehouse Distribution Report', `
+                <h1>Warehouse Distribution Report</h1>
+                <div class="meta"><span>📅 ${new Date().toLocaleDateString('en-IN')}</span></div>
+                <div class="summary">
+                  <div class="summary-item"><div class="label">Total Stock</div><div class="val">${fmt(totalStock)}</div></div>
+                  <div class="summary-item"><div class="label">Warehouses</div><div class="val">${warehouses.length}</div></div>
+                </div>
+                <table><thead><tr><th>#</th><th>Warehouse</th><th>Code</th><th>Units On Hand</th><th>Share %</th><th>Products</th></tr></thead>
+                <tbody>${rows || '<tr><td colspan="6" style="text-align:center;padding:24px;color:#9ca3af">No warehouse data</td></tr>'}</tbody></table>`);
+            }}
+            className="inline-flex items-center gap-2 rounded-lg border border-line px-3 py-1.5 text-sm font-medium text-ink hover:bg-surface-soft"
+          >
+            <Download className="w-4 h-4" /> Export PDF
+          </button>
+        </div>
+        <div className="p-5 space-y-5">
+          {warehouseStats.map((wh, i) => (
+            <div key={wh.id} className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: colors[i % colors.length] }} />
+                  <span className="font-medium text-ink">{wh.name}</span>
+                  <span className="text-xs text-ink-soft">({wh.code})</span>
+                </div>
+                <div className="text-right">
+                  <span className="font-semibold text-ink">{fmt(wh.onHand)} units</span>
+                  <span className="text-xs text-ink-soft ml-2">{wh.percentage}%</span>
+                </div>
+              </div>
+              <div className="h-3 bg-surface-soft rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all"
+                  style={{ width: `${wh.percentage || 0}%`, backgroundColor: colors[i % colors.length] }}
+                />
+              </div>
+              <p className="text-xs text-ink-soft">{wh.products} product{wh.products !== 1 ? 's' : ''} with stock</p>
+            </div>
+          ))}
+          {warehouseStats.length === 0 && (
+            <p className="text-center text-ink-soft py-8">No warehouse data available.</p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Monthly Trend tab (real data) ─────────────────────────────── */
+function MonthlyTab({ receipts, deliveries, transfers }) {
+  const monthlyData = useMemo(() => {
+    const map = {};
+    const getKey = (dateStr) => {
+      if (!dateStr) return null;
+      const d = new Date(dateStr);
+      return isNaN(d) ? null : `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    };
+    const getLabel = (key) => {
+      const [y, m] = key.split('-');
+      return new Date(Number(y), Number(m) - 1).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
+    };
+    [...receipts, ...deliveries, ...transfers].forEach(item => {
+      const key = getKey(item.scheduleDate || item.date);
+      if (key && !map[key]) map[key] = { key, label: getLabel(key), receipts: 0, deliveries: 0, transfers: 0 };
+    });
+    receipts.forEach(r => { const k = getKey(r.scheduleDate); if (k && map[k]) map[k].receipts++; });
+    deliveries.forEach(d => { const k = getKey(d.scheduleDate); if (k && map[k]) map[k].deliveries++; });
+    transfers.forEach(t => { const k = getKey(t.scheduleDate); if (k && map[k]) map[k].transfers++; });
+    return Object.values(map).sort((a, b) => a.key.localeCompare(b.key)).slice(-12);
+  }, [receipts, deliveries, transfers]);
+
+  const maxVal = Math.max(...monthlyData.map(m => Math.max(m.receipts, m.deliveries, m.transfers)), 1);
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <StatCard title="Total Receipts" subtitle="All time" value={receipts.length} icon={ArrowDownToLine} color="text-emerald-600" bg="bg-emerald-50" />
+        <StatCard title="Total Deliveries" subtitle="All time" value={deliveries.length} icon={ArrowUpFromLine} color="text-rose-600" bg="bg-rose-50" />
+        <StatCard title="Total Transfers" subtitle="All time" value={transfers.length} icon={ArrowLeftRight} color="text-blue-600" bg="bg-blue-50" />
+      </div>
+
+      <div className="bg-surface border border-line rounded-xl p-5" style={{ boxShadow: 'var(--shadow-md)' }}>
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="font-semibold text-ink">Operations Trend (Last 12 Months)</h3>
+          <div className="flex items-center gap-4 text-xs">
+            <span className="flex items-center gap-1"><span className="inline-block w-3 h-2 rounded bg-emerald-500" /> Receipts</span>
+            <span className="flex items-center gap-1"><span className="inline-block w-3 h-2 rounded bg-rose-500" /> Deliveries</span>
+            <span className="flex items-center gap-1"><span className="inline-block w-3 h-2 rounded bg-blue-500" /> Transfers</span>
+          </div>
+        </div>
+
+        {monthlyData.length === 0 ? (
+          <p className="text-center text-ink-soft py-8">No monthly data yet. Add some receipts, deliveries, or transfers.</p>
+        ) : (
+          <div className="space-y-5">
+            {monthlyData.map((month, i) => (
+              <div key={i} className="space-y-1.5">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="font-medium text-ink w-24 shrink-0">{month.label}</span>
+                  <span className="text-xs text-ink-soft">Total: {month.receipts + month.deliveries + month.transfers} ops</span>
+                </div>
+                <div className="space-y-1">
+                  {[
+                    { label: 'Receipts', value: month.receipts, color: '#10b981' },
+                    { label: 'Deliveries', value: month.deliveries, color: '#ef4444' },
+                    { label: 'Transfers', value: month.transfers, color: '#3b82f6' },
+                  ].map(bar => (
+                    <div key={bar.label} className="flex items-center gap-2">
+                      <span className="text-xs text-ink-soft w-16 text-right">{bar.label}</span>
+                      <div className="flex-1 h-2 bg-surface-soft rounded-full overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all"
+                          style={{ width: `${(bar.value / maxVal) * 100}%`, backgroundColor: bar.color }}
+                        />
+                      </div>
+                      <span className="text-xs font-semibold text-ink w-6">{bar.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ─── Main Export ───────────────────────────────────────────────── */
 export default function Reports() {
-  const [activeTab, setActiveTab] = useState('low-stock');
+  const { receipts, deliveries, transfers, stock, warehouses } = useInventoryOps();
+  const [activeTab, setActiveTab] = useState('documents');
   const [selectedPeriod, setSelectedPeriod] = useState('month');
 
   const tabs = [
-    { id: 'low-stock', label: 'Low Stock Alert' },
-    { id: 'movement', label: 'Product Movement' },
-    { id: 'warehouse', label: 'Warehouse Distribution' },
-    { id: 'monthly', label: 'Monthly Trend' },
-  ];
-
-  // Low Stock Report
-  const lowStockItems = [
-    { product: 'Welding Electrode 3.2mm', sku: 'WE-32-01', current: 18, reorder: 20, category: 'Tools', trend: -5 },
-    { product: 'Circuit Board v3', sku: 'CB-2024-V3', current: 89, reorder: 100, category: 'Electronics', trend: -12 },
-    { product: 'Oak Plywood Sheet', sku: 'OP-48-01', current: 0, reorder: 50, category: 'Raw Materials', trend: -100 },
-  ];
-
-  // Product Movement Report
-  const movementData = [
-    { product: 'Steel Rods (10mm)', movements: 45, revenue: 135000, trend: 12 },
-    { product: 'Copper Wire (2.5mm)', movements: 32, revenue: 96000, trend: 8 },
-    { product: 'Office Desk Standard', movements: 28, revenue: 84000, trend: -3 },
-    { product: 'Hex Bolt M8x40', movements: 24, revenue: 72000, trend: 5 },
-  ];
-
-  // Warehouse Distribution
-  const warehouseData = [
-    { warehouse: 'Main Warehouse', stock: 8200, percentage: 65, color: '#3b82f6' },
-    { warehouse: 'Secondary Depot', stock: 2100, percentage: 22, color: '#10b981' },
-    { warehouse: 'Regional Hub', stock: 1280, percentage: 13, color: '#f59e0b' },
-  ];
-
-  // Monthly Trend
-  const monthlyData = [
-    { month: 'January', receipts: 145, deliveries: 98, transfers: 32 },
-    { month: 'February', receipts: 156, deliveries: 112, transfers: 45 },
-    { month: 'March', receipts: 89, deliveries: 67, transfers: 24 },
+    { id: 'documents', label: 'Generate PDF', icon: FileBarChart2 },
+    { id: 'movement', label: 'Product Movement', icon: BarChart3 },
+    { id: 'warehouse', label: 'Warehouse Distribution', icon: Warehouse },
+    { id: 'monthly', label: 'Monthly Trend', icon: TrendingUp },
   ];
 
   return (
@@ -106,208 +834,42 @@ export default function Reports() {
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-3xl font-heading font-bold text-ink">Reports</h1>
-          <p className="text-ink-soft text-sm mt-1">Inventory insights and analytics</p>
+          <p className="text-ink-soft text-sm mt-1">Inventory insights, analytics & document export</p>
         </div>
-        <select
-          value={selectedPeriod}
-          onChange={(e) => setSelectedPeriod(e.target.value)}
-          className="px-4 py-2 border border-line rounded-lg bg-surface text-ink text-sm"
-        >
-          <option value="week">Last Week</option>
-          <option value="month">Last Month</option>
-          <option value="quarter">Last Quarter</option>
-          <option value="year">Last Year</option>
-        </select>
+        <div className="flex items-center gap-3">
+          <select
+            value={selectedPeriod}
+            onChange={(e) => setSelectedPeriod(e.target.value)}
+            className="px-4 py-2 border border-line rounded-lg bg-surface text-ink text-sm"
+          >
+            <option value="week">Last Week</option>
+            <option value="month">Last Month</option>
+            <option value="quarter">Last Quarter</option>
+            <option value="year">Last Year</option>
+          </select>
+        </div>
       </div>
 
       {/* Tabs */}
       <Tabs tabs={tabs} activeTab={activeTab} setActiveTab={setActiveTab} />
 
-      {/* Low Stock Alert Tab */}
-      {activeTab === 'low-stock' && (
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <ReportCard
-              title="Critical Items"
-              subtitle="Out of stock"
-              value="1"
-              icon={Package}
-              color="text-red-600"
-            />
-            <ReportCard
-              title="Low Stock"
-              subtitle="Below reorder point"
-              value="2"
-              icon={TrendingDown}
-              color="text-yellow-600"
-            />
-            <ReportCard
-              title="Value at Risk"
-              subtitle="Estimated loss"
-              value="₹45,500"
-              icon={TrendingUp}
-              color="text-orange-600"
-            />
-          </div>
-
-          <div className="bg-surface border border-line rounded-lg p-6" style={{ boxShadow: 'var(--shadow-md)' }}>
-            <h3 className="font-heading font-semibold text-ink mb-6">Low Stock Items</h3>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-line">
-                    <th className="text-left px-4 py-3 font-medium text-ink-soft text-xs uppercase">Product</th>
-                    <th className="text-left px-4 py-3 font-medium text-ink-soft text-xs uppercase">SKU</th>
-                    <th className="text-center px-4 py-3 font-medium text-ink-soft text-xs uppercase">Current</th>
-                    <th className="text-center px-4 py-3 font-medium text-ink-soft text-xs uppercase">Reorder Point</th>
-                    <th className="text-left px-4 py-3 font-medium text-ink-soft text-xs uppercase">Category</th>
-                    <th className="text-center px-4 py-3 font-medium text-ink-soft text-xs uppercase">Trend</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {lowStockItems.map((item, i) => (
-                    <tr key={i} className="border-b border-line hover:bg-surface-soft">
-                      <td className="px-4 py-3 text-ink">{item.product}</td>
-                      <td className="px-4 py-3 font-mono text-xs text-ink-soft">{item.sku}</td>
-                      <td className="px-4 py-3 text-center font-medium text-ink">{item.current}</td>
-                      <td className="px-4 py-3 text-center text-ink-soft">{item.reorder}</td>
-                      <td className="px-4 py-3 text-ink">{item.category}</td>
-                      <td className="px-4 py-3 text-center">
-                        <span className="text-xs text-red-600 font-medium">{item.trend}%</span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
+      {/* Tab Content */}
+      {activeTab === 'documents' && (
+        <DocumentsTab
+          receipts={receipts}
+          deliveries={deliveries}
+          transfers={transfers}
+          warehouses={warehouses}
+        />
       )}
-
-      {/* Product Movement Tab */}
       {activeTab === 'movement' && (
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <ReportCard
-              title="Total Movements"
-              subtitle="Current period"
-              value="512"
-              icon={Package}
-              color="text-blue-600"
-            />
-            <ReportCard
-              title="Total Revenue"
-              subtitle="From movement"
-              value="₹11,52,000"
-              icon={TrendingUp}
-              color="text-green-600"
-            />
-          </div>
-
-          <div className="bg-surface border border-line rounded-lg p-6" style={{ boxShadow: 'var(--shadow-md)' }}>
-            <h3 className="font-heading font-semibold text-ink mb-6">Top Moved Products</h3>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-line">
-                    <th className="text-left px-4 py-3 font-medium text-ink-soft text-xs uppercase">Product</th>
-                    <th className="text-center px-4 py-3 font-medium text-ink-soft text-xs uppercase">Movements</th>
-                    <th className="text-right px-4 py-3 font-medium text-ink-soft text-xs uppercase">Revenue</th>
-                    <th className="text-center px-4 py-3 font-medium text-ink-soft text-xs uppercase">Trend</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {movementData.map((item, i) => (
-                    <tr key={i} className="border-b border-line hover:bg-surface-soft">
-                      <td className="px-4 py-3 text-ink">{item.product}</td>
-                      <td className="px-4 py-3 text-center font-medium text-ink">{item.movements}</td>
-                      <td className="px-4 py-3 text-right font-medium text-ink">₹{item.revenue.toLocaleString()}</td>
-                      <td className="px-4 py-3 text-center">
-                        <span className={`text-xs font-medium ${item.trend > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                          {item.trend > 0 ? '+' : ''}{item.trend}%
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
+        <MovementTab receipts={receipts} deliveries={deliveries} transfers={transfers} />
       )}
-
-      {/* Warehouse Distribution Tab */}
       {activeTab === 'warehouse' && (
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <ReportCard
-              title="Total Stock"
-              subtitle="All warehouses"
-              value="11,580"
-              icon={Warehouse}
-              color="text-blue-600"
-            />
-            <ReportCard
-              title="Warehouses"
-              subtitle="Active locations"
-              value="3"
-              icon={Package}
-              color="text-blue-600"
-            />
-            <ReportCard
-              title="Avg Utilization"
-              subtitle="Capacity used"
-              value="33.6%"
-              icon={TrendingUp}
-              color="text-blue-600"
-            />
-          </div>
-
-          <div className="bg-surface border border-line rounded-lg p-6" style={{ boxShadow: 'var(--shadow-md)' }}>
-            <h3 className="font-heading font-semibold text-ink mb-6">Stock by Warehouse</h3>
-            <div className="space-y-6">
-              {warehouseData.map((item, i) => (
-                <div key={i} className="space-y-2">
-                  <div className="flex justify-between items-end">
-                    <span className="font-medium text-ink">{item.warehouse}</span>
-                    <span className="text-sm text-ink-soft">{item.stock.toLocaleString()} units ({item.percentage}%)</span>
-                  </div>
-                  <div className="h-3 bg-surface-soft rounded-full overflow-hidden">
-                    <div 
-                      className="h-full rounded-full" 
-                      style={{ 
-                        width: `${item.percentage}%`,
-                        backgroundColor: item.color
-                      }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+        <WarehouseTab stock={stock} warehouses={warehouses} />
       )}
-
-      {/* Monthly Trend Tab */}
       {activeTab === 'monthly' && (
-        <div className="space-y-6">
-          <div className="bg-surface border border-line rounded-lg p-6" style={{ boxShadow: 'var(--shadow-md)' }}>
-            <h3 className="font-heading font-semibold text-ink mb-6">Operations Trend</h3>
-            <div className="space-y-6">
-              {monthlyData.map((month, i) => (
-                <div key={i} className="space-y-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="font-medium text-ink">{month.month}</span>
-                    <span className="text-sm text-ink-soft">Total: {month.receipts + month.deliveries + month.transfers}</span>
-                  </div>
-                  <ChartBar label="Receipts" value={month.receipts} maxValue={160} color="#3b82f6" />
-                  <ChartBar label="Deliveries" value={month.deliveries} maxValue={160} color="#10b981" />
-                  <ChartBar label="Transfers" value={month.transfers} maxValue={160} color="#f59e0b" />
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+        <MonthlyTab receipts={receipts} deliveries={deliveries} transfers={transfers} />
       )}
     </div>
   );

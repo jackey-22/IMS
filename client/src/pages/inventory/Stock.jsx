@@ -70,7 +70,6 @@ export default function Stock() {
               <tr className="border-b border-line bg-surface-soft text-ink-soft">
                 <th className="px-4 py-3 text-left font-semibold">Product</th>
                 <th className="px-4 py-3 text-left font-semibold">SKU</th>
-                <th className="px-4 py-3 text-right font-semibold">Per Unit Cost</th>
                 <th className="px-4 py-3 text-right font-semibold">On Hand</th>
                 <th className="px-4 py-3 text-right font-semibold">Free To Use</th>
                 <th className="px-4 py-3 text-center font-semibold">Action</th>
@@ -84,7 +83,6 @@ export default function Stock() {
                   <tr key={item.id} className="border-b border-line last:border-0 hover:bg-surface-soft/60">
                     <td className="px-4 py-3 font-medium text-ink">{item.product}</td>
                     <td className="px-4 py-3 font-mono text-xs text-ink-soft">{item.sku}</td>
-                    <td className="px-4 py-3 text-right text-ink">Rs {item.unitCost.toLocaleString()}</td>
                     <td className="px-4 py-3 text-right">
                       {isEditing ? (
                         <input
@@ -132,7 +130,7 @@ export default function Stock() {
               })}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-10 text-center text-ink-soft">
+                  <td colSpan={5} className="px-4 py-10 text-center text-ink-soft">
                     No stock rows found.
                   </td>
                 </tr>

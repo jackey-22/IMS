@@ -1,5 +1,7 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext.jsx";
+import { useNotifications } from "../../context/NotificationsContext.jsx";
+import { useState } from "react";
 import {
   LayoutDashboard,
   Package,
@@ -18,6 +20,8 @@ import {
 export default function InventoryLayout() {
   const navigate = useNavigate();
   const { logout, session } = useAuth();
+  const { items, unreadCount, markRead, markAllRead } = useNotifications();
+  const [isOpen, setIsOpen] = useState(false);
 
   const navItems = [
     { icon: LayoutDashboard, label: "Dashboard", path: "/inventory/dashboard" },
@@ -160,6 +164,38 @@ export default function InventoryLayout() {
       alignItems: "center",
       justifyContent: "center"
     },
+    dropdown: {
+      position: "absolute",
+      right: 0,
+      top: "36px",
+      width: "320px",
+      background: "#ffffff",
+      border: "1px solid #e5e7eb",
+      borderRadius: "12px",
+      boxShadow: "0 18px 40px rgba(15, 23, 42, 0.15)",
+      zIndex: 200
+    },
+    dropdownHeader: {
+      padding: "12px 14px",
+      borderBottom: "1px solid #e5e7eb",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      fontWeight: 600,
+      fontSize: "14px"
+    },
+    dropdownList: {
+      maxHeight: "320px",
+      overflowY: "auto"
+    },
+    dropdownItem: {
+      padding: "12px 14px",
+      borderBottom: "1px solid #f3f4f6",
+      cursor: "pointer"
+    },
+    dropdownTitle: { fontSize: "13px", fontWeight: 600, color: "#111827" },
+    dropdownMessage: { fontSize: "12px", color: "#6b7280", marginTop: "4px" },
+    dropdownEmpty: { padding: "16px", fontSize: "13px", color: "#6b7280" },
     badge: {
       position: "absolute",
       top: "-4px",
@@ -195,6 +231,8 @@ export default function InventoryLayout() {
       overflowY: "auto"
     }
   };
+
+  const onBellClick = () => setIsOpen((prev) => !prev);
 
   return (
     <div style={styles.shell}>
@@ -233,10 +271,41 @@ export default function InventoryLayout() {
           </div>
 
           <div style={styles.topbarActions}>
-            <button style={styles.iconBtn}>
-              <Bell size={20} />
-              <span style={styles.badge}>3</span>
-            </button>
+            <div style={{ position: "relative" }}>
+              <button style={styles.iconBtn} onClick={onBellClick}>
+                <Bell size={20} />
+                {unreadCount > 0 && <span style={styles.badge}>{unreadCount}</span>}
+              </button>
+              {isOpen && (
+                <div style={styles.dropdown} onClick={(e) => e.stopPropagation()}>
+                  <div style={styles.dropdownHeader}>
+                    <span>Notifications</span>
+                    <button
+                      onClick={() => markAllRead()}
+                      style={{ background: "none", border: "none", color: "#2563eb", cursor: "pointer", fontSize: "12px" }}
+                    >
+                      Mark all read
+                    </button>
+                  </div>
+                  <div style={styles.dropdownList}>
+                    {items.length === 0 && <div style={styles.dropdownEmpty}>No notifications yet.</div>}
+                    {items.map((item) => (
+                      <div
+                        key={item._id}
+                        style={{
+                          ...styles.dropdownItem,
+                          background: item.readAt ? "#ffffff" : "#eff6ff"
+                        }}
+                        onClick={() => markRead(item._id)}
+                      >
+                        <div style={styles.dropdownTitle}>{item.title}</div>
+                        <div style={styles.dropdownMessage}>{item.message}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
 
             <div style={styles.userProfile}>
               <div style={{ textAlign: "right", marginRight: "12px" }}>

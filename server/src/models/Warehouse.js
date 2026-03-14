@@ -14,8 +14,13 @@ const locationSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ["rack", "bin", "zone"],
-      default: "rack"
+      default: "location",
+      trim: true
+    },
+    parentCode: {
+      type: String,
+      trim: true,
+      default: null
     },
     isActive: {
       type: Boolean,

@@ -1,6 +1,6 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useState } from "react";
-import { LayoutDashboard, Users, Warehouse, User, LogOut, Search, Bell, ShieldCheck } from "lucide-react";
+import { LayoutDashboard, Users, Warehouse, User, LogOut, Search, Bell, ShieldCheck, MapPin } from "lucide-react";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { useNotifications } from "../../context/NotificationsContext.jsx";
 
@@ -13,7 +13,8 @@ export default function AdminLayout() {
   const navItems = [
     { icon: LayoutDashboard, label: "Dashboard", path: "/admin/dashboard" },
     { icon: Users, label: "Users", path: "/admin/users" },
-    { icon: Warehouse, label: "Settings • Warehouse", path: "/admin/settings/warehouse" },
+    { icon: Warehouse, label: "Settings • Warehouses", path: "/admin/settings/warehouse" },
+    { icon: MapPin, label: "Settings • Locations", path: "/admin/settings/locations" },
     { icon: User, label: "Profile", path: "/admin/profile" }
   ];
 

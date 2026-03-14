@@ -6,6 +6,119 @@ const router = Router();
 
 router.use(authenticate, requireRole("admin", "inventory_manager"));
 
+const normalizeLocationPayload = (location) => ({
+  name: String(location?.name || "").trim(),
+  code: String(location?.code || "").trim(),
+  type: String(location?.type || "location").trim() || "location",
+  parentCode: location?.parentCode ? String(location.parentCode).trim() : null,
+  isActive: location?.isActive ?? true
+});
+
+const getChildrenMap = (locations) => {
+  const childrenMap = new Map();
+
+  for (const loc of locations) {
+    const key = loc.parentCode ? loc.parentCode.toLowerCase() : null;
+    if (!childrenMap.has(key)) {
+      childrenMap.set(key, []);
+    }
+    childrenMap.get(key).push(loc.code.toLowerCase());
+  }
+
+  return childrenMap;
+};
+
+const hasCycle = (locations) => {
+  const childrenMap = getChildrenMap(locations);
+  const visited = new Set();
+  const inPath = new Set();
+
+  const dfs = (code) => {
+    if (inPath.has(code)) return true;
+    if (visited.has(code)) return false;
+
+    visited.add(code);
+    inPath.add(code);
+
+    for (const childCode of childrenMap.get(code) || []) {
+      if (dfs(childCode)) return true;
+    }
+
+    inPath.delete(code);
+    return false;
+  };
+
+  for (const loc of locations) {
+    if (dfs(loc.code.toLowerCase())) {
+      return true;
+    }
+  }
+
+  return false;
+};
+
+const validateHierarchy = (locations) => {
+  const normalized = locations.map(normalizeLocationPayload);
+
+  const missingNameOrCode = normalized.find((loc) => !loc.name || !loc.code);
+  if (missingNameOrCode) {
+    return { ok: false, message: "Each location requires a name and code" };
+  }
+
+  const codeSet = new Set();
+  for (const loc of normalized) {
+    const key = loc.code.toLowerCase();
+    if (codeSet.has(key)) {
+      return { ok: false, message: `Duplicate location code: ${loc.code}` };
+    }
+    codeSet.add(key);
+  }
+
+  for (const loc of normalized) {
+    if (!loc.parentCode) continue;
+
+    const parentKey = loc.parentCode.toLowerCase();
+    const selfKey = loc.code.toLowerCase();
+
+    if (parentKey === selfKey) {
+      return { ok: false, message: `Location ${loc.code} cannot be its own parent` };
+    }
+
+    if (!codeSet.has(parentKey)) {
+      return {
+        ok: false,
+        message: `Parent location code "${loc.parentCode}" not found for "${loc.code}"`
+      };
+    }
+  }
+
+  if (hasCycle(normalized)) {
+    return { ok: false, message: "Location hierarchy contains a cycle" };
+  }
+
+  return { ok: true, normalized };
+};
+
+const collectDescendantCodes = (locations, rootCode) => {
+  const childrenMap = getChildrenMap(locations.map(normalizeLocationPayload));
+  const descendants = new Set();
+  const queue = [String(rootCode).trim().toLowerCase()];
+
+  while (queue.length) {
+    const parent = queue.shift();
+    const children = childrenMap.get(parent) || [];
+
+    for (const child of children) {
+      if (!descendants.has(child)) {
+        descendants.add(child);
+        queue.push(child);
+      }
+    }
+  }
+
+  return descendants;
+};
+
 router.post("/", async (req, res) => {
   try {
     const { name, code, address, isActive, locations } = req.body;
@@ -14,12 +127,21 @@ router.post("/", async (req, res) => {
       return res.status(400).json({ message: "Name and code are required" });
     }
 
+    let validatedLocations = [];
+    if (Array.isArray(locations)) {
+      const validation = validateHierarchy(locations);
+      if (!validation.ok) {
+        return res.status(400).json({ message: validation.message });
+      }
+      validatedLocations = validation.normalized;
+    }
+
     const warehouse = await Warehouse.create({
       name: String(name).trim(),
       code: String(code).trim(),
       address,
       isActive: isActive ?? true,
-      locations: Array.isArray(locations) ? locations : []
+      locations: validatedLocations
     });
 
     return res.status(201).json(warehouse);
@@ -38,10 +160,7 @@ router.get("/", async (req, res) => {
     const filter = {};
 
     if (q) {
-      filter.$or = [
-        { name: new RegExp(String(q), "i") },
-        { code: new RegExp(String(q), "i") }
-      ];
+      filter.$or = [{ name: new RegExp(String(q), "i") }, { code: new RegExp(String(q), "i") }];
     }
 
     if (isActive !== undefined) {
@@ -80,6 +199,14 @@ router.put("/:id", async (req, res) => {
       updates.code = String(updates.code).trim();
     }
 
+    if (Array.isArray(updates.locations)) {
+      const validation = validateHierarchy(updates.locations);
+      if (!validation.ok) {
+        return res.status(400).json({ message: validation.message });
+      }
+      updates.locations = validation.normalized;
+    }
+
     const warehouse = await Warehouse.findByIdAndUpdate(req.params.id, updates, {
       new: true,
       runValidators: true
@@ -101,7 +228,7 @@ router.put("/:id", async (req, res) => {
 
 router.post("/:id/locations", async (req, res) => {
   try {
-    const { name, code, type, isActive } = req.body;
+    const { name, code, type, parentCode, isActive } = req.body;
 
     if (!name || !code) {
       return res.status(400).json({ message: "Location name and code are required" });
@@ -118,10 +245,19 @@ router.post("/:id/locations", async (req, res) => {
       return res.status(409).json({ message: "Location code already exists in this warehouse" });
     }
 
+    const trimmedParentCode = parentCode ? String(parentCode).trim() : null;
+    if (trimmedParentCode) {
+      const parentExists = warehouse.locations.some((loc) => loc.code.toLowerCase() === trimmedParentCode.toLowerCase());
+      if (!parentExists) {
+        return res.status(400).json({ message: "Parent location code does not exist" });
+      }
+    }
+
     warehouse.locations.push({
       name: String(name).trim(),
       code: trimmedCode,
-      type: type || "rack",
+      type: String(type || "location").trim() || "location",
+      parentCode: trimmedParentCode,
       isActive: isActive ?? true
     });
 
@@ -145,21 +281,62 @@ router.put("/:id/locations/:locationId", async (req, res) => {
       return res.status(404).json({ message: "Location not found" });
     }
 
-    const { name, code, type, isActive } = req.body;
+    const { name, code, type, parentCode, isActive } = req.body;
+    const originalCode = location.code;
 
     if (name !== undefined) location.name = String(name).trim();
-    if (type !== undefined) location.type = type;
+    if (type !== undefined) location.type = String(type).trim() || "location";
     if (isActive !== undefined) location.isActive = Boolean(isActive);
+
     if (code !== undefined) {
       const trimmedCode = String(code).trim();
       const codeExists = warehouse.locations.some(
         (loc) => loc._id.toString() !== req.params.locationId && loc.code.toLowerCase() === trimmedCode.toLowerCase()
       );
+
       if (codeExists) {
         return res.status(409).json({ message: "Location code already exists in this warehouse" });
       }
+
       location.code = trimmedCode;
+
+      // Keep descendants attached when a parent's code changes.
+      for (const loc of warehouse.locations) {
+        if (loc._id.toString() !== req.params.locationId && loc.parentCode?.toLowerCase() === originalCode.toLowerCase()) {
+          loc.parentCode = trimmedCode;
+        }
+      }
     }
+
+    if (parentCode !== undefined) {
+      const trimmedParentCode = parentCode ? String(parentCode).trim() : null;
+      const currentCode = (code !== undefined ? String(code).trim() : location.code).toLowerCase();
+
+      if (trimmedParentCode?.toLowerCase() === currentCode) {
+        return res.status(400).json({ message: "Location cannot be its own parent" });
+      }
+
+      if (trimmedParentCode) {
+        const parentExists = warehouse.locations.some((loc) => loc.code.toLowerCase() === trimmedParentCode.toLowerCase());
+        if (!parentExists) {
+          return res.status(400).json({ message: "Parent location code does not exist" });
+        }
+
+        const descendants = collectDescendantCodes(warehouse.locations, location.code);
+        if (descendants.has(trimmedParentCode.toLowerCase())) {
+          return res.status(400).json({ message: "Cannot move a location under its own descendant" });
+        }
+      }
+
+      location.parentCode = trimmedParentCode;
+    }
+
+    const hierarchyValidation = validateHierarchy(warehouse.locations);
+    if (!hierarchyValidation.ok) {
+      return res.status(400).json({ message: hierarchyValidation.message });
+    }
+
+    warehouse.locations = hierarchyValidation.normalized;
 
     await warehouse.save();
     return res.json(warehouse);
@@ -181,7 +358,11 @@ router.delete("/:id/locations/:locationId", async (req, res) => {
       return res.status(404).json({ message: "Location not found" });
     }
 
-    location.deleteOne();
+    const descendantCodes = collectDescendantCodes(warehouse.locations, location.code);
+    const codesToDelete = new Set([location.code.toLowerCase(), ...descendantCodes]);
+
+    warehouse.locations = warehouse.locations.filter((loc) => !codesToDelete.has(loc.code.toLowerCase()));
+
     await warehouse.save();
     return res.json(warehouse);
   } catch (error) {

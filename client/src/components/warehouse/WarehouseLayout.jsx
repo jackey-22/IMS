@@ -233,7 +233,7 @@ export default function WarehouseLayout() {
       <aside style={styles.sidebar}>
         <div style={styles.sidebarHeader}>
           <div style={styles.avatar("32px", "white", "#3b82f6")}>IMS</div>
-          <h2 style={{ fontSize: "20px", fontWeight: "800", margin: 0 }}>Warehouse</h2>
+          <h2 style={{ fontSize: "20px", fontWeight: "800", margin: 0 }}>Warehouse Staff</h2>
         </div>
 
         <nav style={styles.sidebarNav}>

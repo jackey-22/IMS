@@ -25,8 +25,9 @@ export default function LoginPage() {
     setFeedback(null);
     try {
       const session = await loginUser({ loginId: form.loginId.trim(), password: form.password });
+      const target = session.user?.role === "warehouse_staff" ? "/warehouse/dashboard" : "/dashboard";
       setSession(session);
-      navigate("/dashboard", { replace: true });
+      navigate(target, { replace: true });
     } catch (error) {
       setFeedback({ type: "error", text: error.message || "Login failed." });
     } finally {

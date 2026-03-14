@@ -1,0 +1,94 @@
+import { Search, Filter, ArrowUpDown, ChevronRight, Map } from "lucide-react";
+
+export default function ProductsSearchPage() {
+  const products = [
+    { name: "Steel Rods", sku: "STR-001", category: "Raw Material", stock: 1250, warehouse: "Main", location: "Aisle 1, Shelf A" },
+    { name: "Power Drills", sku: "PWR-202", category: "Tools", stock: 45, warehouse: "Main", location: "Aisle 4, Shelf B" },
+    { name: "Brake Pads", sku: "BRK-500", category: "Auto Parts", stock: 850, warehouse: "North", location: "Aisle 2, Bin 12" },
+    { name: "Office Chairs", sku: "OFC-101", category: "Furniture", stock: 12, warehouse: "Main", location: "Aisle 8" },
+    { name: "Duct Tape", sku: "MISC-99", category: "Consumables", stock: 500, warehouse: "Main", location: "Dispatch Bay" },
+  ];
+
+  const commonStyles = {
+    titleSection: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "24px" },
+    h1: { fontSize: "24px", fontWeight: "700", color: "#111827", margin: 0 },
+    card: { background: "#ffffff", borderRadius: "12px", border: "1px solid #e5e7eb", boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)", overflow: "hidden" },
+    table: { width: "100%", borderCollapse: "collapse" },
+    th: { textAlign: "left", padding: "16px 24px", background: "#f9fafb", color: "#6b7280", fontWeight: "600", fontSize: "13px", textTransform: "uppercase" },
+    td: { padding: "16px 24px", borderBottom: "1px solid #e5e7eb", fontSize: "14px", color: "#111827" },
+    btnPrimary: { background: "#3b82f6", color: "white", border: "none", padding: "8px 16px", borderRadius: "8px", fontWeight: "600", fontSize: "14px", cursor: "pointer" },
+    btnSecondary: { background: "white", color: "#111827", border: "1px solid #e5e7eb", padding: "8px 16px", borderRadius: "8px", fontWeight: "600", fontSize: "14px", cursor: "pointer", display: "flex", alignItems: "center", gap: "8px" },
+    filterGroup: { display: "flex", flexDirection: "column", gap: "6px" },
+    label: { fontSize: "12px", fontWeight: "600", color: "#6b7280" },
+    select: { padding: "8px 12px", borderRadius: "8px", border: "1px solid #e5e7eb", fontSize: "14px", outline: "none" }
+  };
+
+  return (
+    <div>
+      <div style={commonStyles.titleSection}>
+        <h1 style={commonStyles.h1}>Product Inventory Search</h1>
+        <button style={commonStyles.btnSecondary}><Map size={18} /> Map</button>
+      </div>
+
+      <div style={{ ...commonStyles.card, marginBottom: "24px", padding: "20px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr auto auto auto", gap: "16px", alignItems: "end" }}>
+          <div style={commonStyles.filterGroup}>
+            <label style={commonStyles.label}>Search Products</label>
+            <div style={{ display: "flex", background: "#f3f4f6", padding: "8px 16px", borderRadius: "8px", border: "none", alignItems: "center", gap: "8px" }}>
+              <Search size={18} color="#6b7280" />
+              <input placeholder="SKU or Name..." style={{ background: "transparent", border: "none", outline: "none", width: "100%", fontSize: "14px" }} />
+            </div>
+          </div>
+          
+          <div style={commonStyles.filterGroup}>
+            <label style={commonStyles.label}>Category</label>
+            <select style={commonStyles.select}>
+              <option>All Categories</option>
+              <option>Raw Material</option>
+              <option>Tools</option>
+            </select>
+          </div>
+
+          <div style={commonStyles.filterGroup}>
+            <label style={commonStyles.label}>Warehouse</label>
+            <select style={commonStyles.select}>
+              <option>All Warehouses</option>
+              <option>Main Warehouse</option>
+            </select>
+          </div>
+
+          <button style={{ ...commonStyles.btnPrimary, height: "40px" }}>Apply</button>
+        </div>
+      </div>
+
+      <div style={commonStyles.card}>
+        <table style={commonStyles.table}>
+          <thead>
+            <tr>
+              <th style={commonStyles.th}>Product</th>
+              <th style={commonStyles.th}>SKU</th>
+              <th style={commonStyles.th}>Stock</th>
+              <th style={commonStyles.th}>Location</th>
+              <th style={commonStyles.th}>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {products.map((p, i) => (
+              <tr key={i}>
+                <td style={{ ...commonStyles.td, fontWeight: "600" }}>{p.name}</td>
+                <td style={{ ...commonStyles.td, color: "#6b7280" }}>{p.sku}</td>
+                <td style={{ ...commonStyles.td, fontWeight: "700" }}>{p.stock}</td>
+                <td style={commonStyles.td}>{p.location}</td>
+                <td style={commonStyles.td}>
+                  <button style={{ background: "transparent", border: "none", cursor: "pointer", color: "#6b7280" }}>
+                    <ChevronRight size={18} />
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}

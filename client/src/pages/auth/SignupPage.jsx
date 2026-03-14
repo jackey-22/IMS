@@ -59,8 +59,9 @@ export default function SignupPage() {
         password: form.password,
         confirmPassword: form.confirmPassword
       });
+      const target = session.user?.role === "warehouse_staff" ? "/warehouse/dashboard" : "/dashboard";
       setSession(session);
-      navigate("/dashboard", { replace: true });
+      navigate(target, { replace: true });
     } catch (error) {
       setFeedback({ type: "error", text: error.message || "Sign up failed." });
     } finally {

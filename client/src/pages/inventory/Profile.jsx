@@ -1,343 +1,280 @@
-import { useState } from 'react';
-import { Edit, Lock, LogOut, Trash2, Save, X } from 'lucide-react';
+import { useEffect, useMemo, useState } from "react";
+import { Mail, Shield, UserCircle2, KeyRound, CheckCircle2 } from "lucide-react";
+import { useAuth } from "../../context/AuthContext.jsx";
+import { changeMyPassword, getMyProfile, updateMyProfile } from "../../services/profileApi.js";
+import { isValidEmail, isValidPassword, passwordHint } from "../../services/authApi.js";
 
-// Section Component
-function Section({ title, children, icon: Icon }) {
-  return (
-    <div className="bg-surface border border-line rounded-lg p-6 mb-6" style={{ boxShadow: 'var(--shadow-md)' }}>
-      <div className="flex items-center gap-3 mb-6">
-        {Icon && <Icon className="w-5 h-5 text-ink" />}
-        <h2 className="font-heading font-semibold text-lg text-ink">{title}</h2>
-      </div>
-      {children}
-    </div>
-  );
-}
-
-// Edit Profile Modal
-function EditProfileModal({ isOpen, onClose, onSave, profile }) {
-  const [formData, setFormData] = useState(profile);
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    onSave(formData);
-    onClose();
-  };
-
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-surface border border-line rounded-lg max-w-md w-full p-6" style={{ boxShadow: 'var(--shadow-lg)' }}>
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-heading font-bold text-ink">Edit Profile</h2>
-          <button onClick={onClose} className="text-ink-soft hover:text-ink">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-ink mb-1">Full Name</label>
-            <input
-              type="text"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="w-full px-3 py-2 border border-line rounded-lg bg-surface-soft text-ink text-sm"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-ink mb-1">Email</label>
-            <input
-              type="email"
-              value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              className="w-full px-3 py-2 border border-line rounded-lg bg-surface-soft text-ink text-sm"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-ink mb-1">Department</label>
-            <input
-              type="text"
-              value={formData.department}
-              onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-              className="w-full px-3 py-2 border border-line rounded-lg bg-surface-soft text-ink text-sm"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-ink mb-1">Phone</label>
-            <input
-              type="tel"
-              value={formData.phone}
-              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-              className="w-full px-3 py-2 border border-line rounded-lg bg-surface-soft text-ink text-sm"
-            />
-          </div>
-
-          <div className="flex gap-3 pt-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 px-4 py-2 border border-line rounded-lg text-ink hover:bg-surface-soft transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              Save Changes
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-// Password Change Modal
-function PasswordModal({ isOpen, onClose, onSave }) {
-  const [passwords, setPasswords] = useState({
-    current: '',
-    new: '',
-    confirm: ''
-  });
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (passwords.new !== passwords.confirm) {
-      alert('Passwords do not match!');
-      return;
-    }
-    onSave();
-    setPasswords({ current: '', new: '', confirm: '' });
-    onClose();
-  };
-
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-surface border border-line rounded-lg max-w-md w-full p-6" style={{ boxShadow: 'var(--shadow-lg)' }}>
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-heading font-bold text-ink">Change Password</h2>
-          <button onClick={onClose} className="text-ink-soft hover:text-ink">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-ink mb-1">Current Password</label>
-            <input
-              type="password"
-              value={passwords.current}
-              onChange={(e) => setPasswords({ ...passwords, current: e.target.value })}
-              className="w-full px-3 py-2 border border-line rounded-lg bg-surface-soft text-ink text-sm"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-ink mb-1">New Password</label>
-            <input
-              type="password"
-              value={passwords.new}
-              onChange={(e) => setPasswords({ ...passwords, new: e.target.value })}
-              className="w-full px-3 py-2 border border-line rounded-lg bg-surface-soft text-ink text-sm"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-ink mb-1">Confirm Password</label>
-            <input
-              type="password"
-              value={passwords.confirm}
-              onChange={(e) => setPasswords({ ...passwords, confirm: e.target.value })}
-              className="w-full px-3 py-2 border border-line rounded-lg bg-surface-soft text-ink text-sm"
-              required
-            />
-          </div>
-
-          <div className="flex gap-3 pt-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 px-4 py-2 border border-line rounded-lg text-ink hover:bg-surface-soft transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              Update Password
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
+const roleLabel = (role) => {
+  if (role === "admin") return "Administrator";
+  if (role === "warehouse_staff") return "Warehouse Staff";
+  if (role === "inventory_manager") return "Inventory Manager";
+  return role || "User";
+};
 
 export default function Profile() {
-  const [editModalOpen, setEditModalOpen] = useState(false);
-  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
-  const [profile, setProfile] = useState({
-    name: 'Rahul Sharma',
-    email: 'rahul.sharma@ims.com',
-    role: 'Inventory Manager',
-    department: 'Warehouse Operations',
-    phone: '+91-98765-43210',
-    joinDate: '2024-01-15',
-    lastLogin: '2026-03-14 10:30 AM'
+  const { session, setSession } = useAuth();
+  const token = session?.token;
+
+  const [profile, setProfile] = useState(session?.user || null);
+  const [loading, setLoading] = useState(true);
+  const [feedback, setFeedback] = useState(null);
+  const [error, setError] = useState(null);
+
+  const [profileForm, setProfileForm] = useState({
+    name: session?.user?.name || "",
+    email: session?.user?.email || ""
+  });
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: ""
   });
 
-  const activityLog = [
-    { id: 1, action: 'Updated inventory count', time: '2026-03-14 10:15 AM', type: 'edit' },
-    { id: 2, action: 'Created new receipt REC-9042', time: '2026-03-14 09:45 AM', type: 'create' },
-    { id: 3, action: 'Approved delivery DEL-3021', time: '2026-03-14 08:30 AM', type: 'approve' },
-    { id: 4, action: 'Generated stock ledger report', time: '2026-03-13 03:45 PM', type: 'export' },
-    { id: 5, action: 'Updated product details', time: '2026-03-13 02:20 PM', type: 'edit' },
-  ];
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [savingPassword, setSavingPassword] = useState(false);
 
-  const handleProfileSave = (updatedProfile) => {
-    setProfile(updatedProfile);
+  useEffect(() => {
+    const loadProfile = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const payload = await getMyProfile(token);
+        setProfile(payload.user);
+        setProfileForm({
+          name: payload.user.name || "",
+          email: payload.user.email || ""
+        });
+        setSession((prev) => (prev ? { ...prev, user: payload.user } : prev));
+      } catch (err) {
+        setError(err.message || "Failed to load profile");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (token) {
+      loadProfile();
+    }
+  }, [token, setSession]);
+
+  const initials = useMemo(() => {
+    const source = (profile?.name || profile?.loginId || "U").trim();
+    return source
+      .split(" ")
+      .map((part) => part[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase();
+  }, [profile?.loginId, profile?.name]);
+
+  const pushFeedback = (type, text) => {
+    setFeedback({ type, text });
+    setTimeout(() => setFeedback(null), 2800);
   };
 
-  const handlePasswordSave = () => {
-    alert('Password changed successfully!');
+  const onProfileChange = (e) => {
+    const { name, value } = e.target;
+    setProfileForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const onPasswordChange = (e) => {
+    const { name, value } = e.target;
+    setPasswordForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleProfileSubmit = async (e) => {
+    e.preventDefault();
+    if (!profileForm.name.trim()) {
+      pushFeedback("error", "Name is required.");
+      return;
+    }
+    if (!isValidEmail(profileForm.email.trim())) {
+      pushFeedback("error", "Enter a valid email address.");
+      return;
+    }
+
+    setSavingProfile(true);
+    try {
+      const payload = await updateMyProfile(token, {
+        name: profileForm.name.trim(),
+        email: profileForm.email.trim()
+      });
+      setProfile(payload.user);
+      setSession((prev) => (prev ? { ...prev, user: payload.user } : prev));
+      pushFeedback("success", "Profile updated successfully.");
+    } catch (err) {
+      pushFeedback("error", err.message || "Failed to update profile.");
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
+  const handlePasswordSubmit = async (e) => {
+    e.preventDefault();
+    if (!passwordForm.currentPassword || !passwordForm.newPassword || !passwordForm.confirmPassword) {
+      pushFeedback("error", "All password fields are required.");
+      return;
+    }
+    if (!isValidPassword(passwordForm.newPassword)) {
+      pushFeedback("error", passwordHint);
+      return;
+    }
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      pushFeedback("error", "Passwords do not match.");
+      return;
+    }
+
+    setSavingPassword(true);
+    try {
+      await changeMyPassword(token, passwordForm);
+      setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+      pushFeedback("success", "Password updated successfully.");
+    } catch (err) {
+      pushFeedback("error", err.message || "Failed to update password.");
+    } finally {
+      setSavingPassword(false);
+    }
+  };
+
+  const styles = {
+    heading: { fontSize: "24px", fontWeight: 700, color: "#111827", margin: 0 },
+    card: {
+      background: "#ffffff",
+      borderRadius: "12px",
+      border: "1px solid #e5e7eb",
+      boxShadow: "0 1px 2px 0 rgba(0,0,0,0.05)",
+      overflow: "hidden"
+    },
+    avatar: {
+      width: "100px",
+      height: "100px",
+      borderRadius: "50%",
+      background: "#3b82f6",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      color: "white",
+      fontSize: "32px",
+      fontWeight: 700,
+      margin: "0 auto 20px"
+    },
+    input: {
+      width: "100%",
+      padding: "12px 14px",
+      borderRadius: "10px",
+      border: "1px solid #d1d5db",
+      fontSize: "14px",
+      outline: "none"
+    },
+    button: {
+      minHeight: "42px",
+      padding: "0 16px",
+      borderRadius: "8px",
+      border: "1px solid #111827",
+      background: "#111827",
+      color: "#fff",
+      fontWeight: 600,
+      cursor: "pointer"
+    },
+    helperButton: {
+      minHeight: "42px",
+      padding: "0 16px",
+      borderRadius: "8px",
+      border: "1px solid #e5e7eb",
+      background: "#fff",
+      color: "#111827",
+      fontWeight: 600,
+      cursor: "pointer"
+    }
   };
 
   return (
-    <div className="p-8">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-heading font-bold text-ink">Profile</h1>
-        <p className="text-ink-soft text-sm mt-1">Manage your account settings and preferences</p>
+    <div>
+      <div style={{ marginBottom: "24px" }}>
+        <h1 style={styles.heading}>Manager Profile</h1>
       </div>
 
-      {/* Profile Header Card */}
-      <div className="bg-surface border border-line rounded-lg p-8 mb-6 flex items-center justify-between" style={{ boxShadow: 'var(--shadow-md)' }}>
-        <div className="flex items-center gap-6">
-          <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-heading font-bold text-2xl">
-            {profile.name.split(' ').map(n => n[0]).join('')}
-          </div>
-          <div>
-            <h2 className="text-2xl font-heading font-bold text-ink">{profile.name}</h2>
-            <p className="text-ink-soft mt-1">{profile.role} • {profile.department}</p>
-            <p className="text-xs text-ink-soft mt-2">Member since {profile.joinDate}</p>
-          </div>
-        </div>
-        <button
-          onClick={() => setEditModalOpen(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          <Edit className="w-4 h-4" />
-          Edit Profile
-        </button>
-      </div>
+      {feedback && <div className={`feedback ${feedback.type}`} style={{ marginBottom: "14px" }}>{feedback.text}</div>}
+      {error && <div className="feedback error" style={{ marginBottom: "14px" }}>{error}</div>}
 
-      {/* Personal Information Section */}
-      <Section title="Personal Information">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <p className="text-xs text-ink-soft uppercase tracking-wider mb-1">Full Name</p>
-            <p className="text-ink font-medium">{profile.name}</p>
-          </div>
-          <div>
-            <p className="text-xs text-ink-soft uppercase tracking-wider mb-1">Email</p>
-            <p className="text-ink font-medium">{profile.email}</p>
-          </div>
-          <div>
-            <p className="text-xs text-ink-soft uppercase tracking-wider mb-1">Department</p>
-            <p className="text-ink font-medium">{profile.department}</p>
-          </div>
-          <div>
-            <p className="text-xs text-ink-soft uppercase tracking-wider mb-1">Phone</p>
-            <p className="text-ink font-medium">{profile.phone}</p>
-          </div>
-          <div>
-            <p className="text-xs text-ink-soft uppercase tracking-wider mb-1">Role</p>
-            <p className="text-ink font-medium">{profile.role}</p>
-          </div>
-          <div>
-            <p className="text-xs text-ink-soft uppercase tracking-wider mb-1">Last Login</p>
-            <p className="text-ink font-medium">{profile.lastLogin}</p>
-          </div>
-        </div>
-      </Section>
+      <div style={{ display: "grid", gridTemplateColumns: "340px 1fr", gap: "24px" }}>
+        <div style={{ ...styles.card, padding: "32px", textAlign: "center" }}>
+          <div style={styles.avatar}>{initials}</div>
+          <h2 style={{ fontSize: "20px", fontWeight: 700, margin: "0 0 8px" }}>{profile?.name || "Loading..."}</h2>
+          <p style={{ color: "#6b7280", margin: "0 0 24px" }}>{roleLabel(profile?.role)}</p>
 
-      {/* Security Section */}
-      <Section title="Security" icon={Lock}>
-        <div className="space-y-3">
-          <button
-            onClick={() => setPasswordModalOpen(true)}
-            className="w-full px-4 py-3 border border-line rounded-lg text-ink hover:bg-surface-soft transition-colors text-left flex items-center justify-between group"
-          >
-            <span>Change Password</span>
-            <Edit className="w-4 h-4 text-ink-soft group-hover:text-ink" />
-          </button>
-          <p className="text-xs text-ink-soft">
-            Secure your account by changing your password regularly. Use a strong password with a mix of uppercase, lowercase, numbers, and symbols.
-          </p>
-        </div>
-      </Section>
-
-      {/* Activity Log Section */}
-      <Section title="Activity Log">
-        <div className="space-y-3">
-          {activityLog.map((log) => (
-            <div key={log.id} className="flex items-start gap-4 pb-3 border-b border-line last:border-0">
-              <div className={`w-2 h-2 rounded-full mt-2 ${
-                log.type === 'create' ? 'bg-green-500' :
-                log.type === 'edit' ? 'bg-blue-500' :
-                log.type === 'approve' ? 'bg-purple-500' :
-                'bg-orange-500'
-              }`} />
-              <div className="flex-1">
-                <p className="text-sm font-medium text-ink">{log.action}</p>
-                <p className="text-xs text-ink-soft mt-1">{log.time}</p>
-              </div>
+          <div style={{ textAlign: "left", paddingTop: "24px", borderTop: "1px solid #e5e7eb", display: "grid", gap: "12px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "12px", fontSize: "14px" }}>
+              <Mail size={16} color="#6b7280" /> <span>{profile?.email || "-"}</span>
             </div>
-          ))}
+            <div style={{ display: "flex", alignItems: "center", gap: "12px", fontSize: "14px" }}>
+              <Shield size={16} color="#6b7280" /> <span>{roleLabel(profile?.role)}</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: "12px", fontSize: "14px" }}>
+              <UserCircle2 size={16} color="#6b7280" /> <span>Login ID: {profile?.loginId || "-"}</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: "12px", fontSize: "14px" }}>
+              <CheckCircle2 size={16} color="#6b7280" /> <span>{profile?.isActive ? "Account Active" : "Account Disabled"}</span>
+            </div>
+          </div>
         </div>
-      </Section>
 
-      {/* Danger Zone Section */}
-      <Section title="Danger Zone">
-        <div className="space-y-4">
-          <button className="w-full px-4 py-3 border border-red-200 bg-red-50 text-red-800 rounded-lg hover:bg-red-100 transition-colors font-medium flex items-center justify-between group">
-            <span>Sign Out</span>
-            <LogOut className="w-4 h-4" />
-          </button>
-          <button className="w-full px-4 py-3 border border-red-300 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium flex items-center justify-between group">
-            <span>Delete Account</span>
-            <Trash2 className="w-4 h-4" />
-          </button>
-          <p className="text-xs text-red-600">
-            ⚠️ Deleting your account is permanent and cannot be undone. All your data will be permanently removed.
-          </p>
+        <div style={{ display: "grid", gap: "24px" }}>
+          <div style={styles.card}>
+            <div style={{ padding: "20px 24px", borderBottom: "1px solid #e5e7eb", fontWeight: 600 }}>Profile Details</div>
+            <form onSubmit={handleProfileSubmit} style={{ padding: "24px", display: "grid", gap: "16px" }}>
+              <div className="field" style={{ gap: "8px" }}>
+                <label htmlFor="profile-name">Full Name</label>
+                <input id="profile-name" name="name" value={profileForm.name} onChange={onProfileChange} style={styles.input} disabled={loading} />
+              </div>
+              <div className="field" style={{ gap: "8px" }}>
+                <label htmlFor="profile-email">Email</label>
+                <input id="profile-email" name="email" type="email" value={profileForm.email} onChange={onProfileChange} style={styles.input} disabled={loading} />
+              </div>
+              <div className="field" style={{ gap: "8px" }}>
+                <label htmlFor="profile-login">Login ID</label>
+                <input id="profile-login" value={profile?.loginId || ""} style={{ ...styles.input, background: "#f9fafb" }} disabled />
+              </div>
+              <div>
+                <button type="submit" style={styles.button} disabled={savingProfile || loading}>
+                  {savingProfile ? "Saving..." : "Save Profile"}
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <div style={styles.card}>
+            <div style={{ padding: "20px 24px", borderBottom: "1px solid #e5e7eb", fontWeight: 600 }}>Security</div>
+            <form onSubmit={handlePasswordSubmit} style={{ padding: "24px", display: "grid", gap: "16px" }}>
+              <div className="field" style={{ gap: "8px" }}>
+                <label htmlFor="currentPassword">Current Password</label>
+                <input id="currentPassword" name="currentPassword" type="password" value={passwordForm.currentPassword} onChange={onPasswordChange} style={styles.input} />
+              </div>
+              <div className="field" style={{ gap: "8px" }}>
+                <label htmlFor="newPassword">New Password</label>
+                <input id="newPassword" name="newPassword" type="password" value={passwordForm.newPassword} onChange={onPasswordChange} style={styles.input} placeholder={passwordHint} />
+              </div>
+              <div className="field" style={{ gap: "8px" }}>
+                <label htmlFor="confirmPassword">Confirm New Password</label>
+                <input id="confirmPassword" name="confirmPassword" type="password" value={passwordForm.confirmPassword} onChange={onPasswordChange} style={styles.input} />
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+                <button type="submit" style={styles.button} disabled={savingPassword}>
+                  <KeyRound size={16} style={{ marginRight: "8px", verticalAlign: "middle" }} />
+                  {savingPassword ? "Updating..." : "Change Password"}
+                </button>
+                <button
+                  type="button"
+                  style={styles.helperButton}
+                  onClick={() => setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" })}
+                >
+                  Clear
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
-      </Section>
-
-      {/* Modals */}
-      <EditProfileModal
-        isOpen={editModalOpen}
-        onClose={() => setEditModalOpen(false)}
-        onSave={handleProfileSave}
-        profile={profile}
-      />
-
-      <PasswordModal
-        isOpen={passwordModalOpen}
-        onClose={() => setPasswordModalOpen(false)}
-        onSave={handlePasswordSave}
-      />
+      </div>
     </div>
   );
 }

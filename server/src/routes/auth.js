@@ -123,6 +123,10 @@ router.post("/login", async (req, res) => {
       return res.status(401).json({ message: "Invalid Login ID or Password" });
     }
 
+    if (!user.isActive) {
+      return res.status(403).json({ message: "Account is disabled. Contact your administrator." });
+    }
+
     const token = signToken(user);
     return res.json({ token, user: sanitizeUser(user) });
   } catch (error) {

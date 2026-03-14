@@ -10,28 +10,21 @@ export default function LoginPage() {
   const [feedback, setFeedback] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleChange = (event) => {
-    const { name, value } = event.target;
-    setForm((current) => ({ ...current, [name]: value }));
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setForm((c) => ({ ...c, [name]: value }));
   };
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-
+  const handleSubmit = async (e) => {
+    e.preventDefault();
     if (!form.loginId.trim() || !form.password) {
       setFeedback({ type: "error", text: "Enter Login ID and Password." });
       return;
     }
-
     setIsSubmitting(true);
     setFeedback(null);
-
     try {
-      const session = await loginUser({
-        loginId: form.loginId.trim(),
-        password: form.password
-      });
-
+      const session = await loginUser({ loginId: form.loginId.trim(), password: form.password });
       setSession(session);
       navigate("/dashboard", { replace: true });
     } catch (error) {
@@ -42,13 +35,16 @@ export default function LoginPage() {
   };
 
   return (
-    <section className="form-card">
-      <header className="page-header">
-        <h2 className="page-title">Login</h2>
-      </header>
+    <div className="auth-card">
+      <div className="auth-brand">
+        <div className="logo-mark">IMS</div>
+        <span className="brand-name">CoreInventory</span>
+      </div>
+
+      <h1 className="auth-title">Welcome back</h1>
 
       <form className="form" onSubmit={handleSubmit}>
-        {feedback ? <div className={`feedback ${feedback.type}`}>{feedback.text}</div> : null}
+        {feedback && <div className={`feedback ${feedback.type}`}>{feedback.text}</div>}
 
         <div className="field">
           <label htmlFor="loginId">Login ID</label>
@@ -57,8 +53,9 @@ export default function LoginPage() {
             name="loginId"
             value={form.loginId}
             onChange={handleChange}
-            placeholder="Enter login ID"
+            placeholder="Enter your login ID"
             autoComplete="username"
+            autoFocus
           />
         </div>
 
@@ -70,7 +67,7 @@ export default function LoginPage() {
             type="password"
             value={form.password}
             onChange={handleChange}
-            placeholder="Enter password"
+            placeholder="Enter your password"
             autoComplete="current-password"
           />
         </div>
@@ -78,16 +75,13 @@ export default function LoginPage() {
         <button className="button block" type="submit" disabled={isSubmitting}>
           {isSubmitting ? "Checking..." : "Login"}
         </button>
-
-        <div className="link-row">
-          <Link className="text-button" to="/reset-password">
-            Forgot Password?
-          </Link>
-          <Link className="text-button" to="/signup">
-            Create account
-          </Link>
-        </div>
       </form>
-    </section>
+
+      <footer className="auth-footer">
+        <Link to="/reset-password">Forgot password?</Link>
+        <span className="auth-divider">·</span>
+        <Link to="/signup">Create account</Link>
+      </footer>
+    </div>
   );
 }

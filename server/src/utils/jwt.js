@@ -24,5 +24,6 @@ export const sanitizeUser = (user) => ({
   loginId: user.loginId,
   email: user.email,
   role: user.role,
+  isActive: user.isActive,
   createdAt: user.createdAt
 });

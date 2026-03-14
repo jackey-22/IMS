@@ -64,25 +64,172 @@ a {
   padding: 28px;
 }
 
-.auth-layout,
 .dashboard-layout {
   max-width: 1180px;
   margin: 0 auto;
 }
 
-.auth-layout {
+/* ====== Auth Shell ====== */
+.auth-shell {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 16px;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 420px;
+  background: #ffffff;
+  border: 1px solid rgba(24, 52, 87, 0.08);
+  border-radius: 28px;
+  box-shadow:
+    0 24px 80px rgba(17, 40, 70, 0.1),
+    0 1px 2px rgba(17, 40, 70, 0.06);
+  padding: 40px 40px 32px;
+}
+
+.auth-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 28px;
+}
+
+.logo-mark {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, var(--blue-500), var(--blue-600));
+  color: #ffffff;
+  font-family: "Sora", sans-serif;
+  font-weight: 700;
+  font-size: 1.1rem;
   display: grid;
-  grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
-  gap: 24px;
-  align-items: start;
+  place-items: center;
+  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.32);
 }
 
-.auth-layout.single {
-  grid-template-columns: 140px minmax(0, 1fr);
+.brand-name {
+  font-family: "Sora", sans-serif;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--ink-soft);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
 }
 
-.auth-side,
-.auth-main,
+.auth-title {
+  font-family: "Sora", sans-serif;
+  font-size: 1.55rem;
+  font-weight: 700;
+  color: var(--navy-900);
+  margin: 0 0 20px;
+  letter-spacing: -0.03em;
+  text-align: center;
+}
+
+/* ====== Stepper ====== */
+.stepper {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  margin-bottom: 24px;
+}
+
+.step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.step-dot {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: 2px solid rgba(24, 52, 87, 0.15);
+  background: #ffffff;
+  color: var(--ink-soft);
+  font-weight: 700;
+  font-size: 0.82rem;
+  display: grid;
+  place-items: center;
+  transition:
+    border-color 220ms ease,
+    background 220ms ease,
+    color 220ms ease,
+    box-shadow 220ms ease;
+}
+
+.step.active .step-dot {
+  border-color: var(--blue-600);
+  background: var(--blue-600);
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.38);
+}
+
+.step.done .step-dot {
+  border-color: var(--blue-600);
+  background: var(--blue-100);
+  color: var(--blue-600);
+}
+
+.step-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--ink-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.step.active .step-label,
+.step.done .step-label {
+  color: var(--blue-600);
+}
+
+.step-connector {
+  flex: 1;
+  max-width: 80px;
+  height: 2px;
+  background: rgba(24, 52, 87, 0.1);
+  margin: 16px 10px 0;
+  border-radius: 2px;
+  transition: background 220ms ease;
+}
+
+.step-connector.done {
+  background: var(--blue-600);
+}
+
+/* ====== Auth Footer ====== */
+.auth-footer {
+  margin-top: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+}
+
+.auth-footer a {
+  color: var(--blue-600);
+  font-weight: 700;
+}
+
+.auth-footer a:hover {
+  text-decoration: underline;
+}
+
+.auth-divider {
+  opacity: 0.35;
+}
+
+/* ====== Dashboard Shared ====== */
 .dashboard-header,
 .dashboard-card,
 .dashboard-hero {
@@ -92,73 +239,11 @@ a {
   backdrop-filter: blur(18px);
 }
 
-.auth-side,
-.auth-main,
 .dashboard-header,
 .dashboard-card,
 .dashboard-hero,
-.form-card,
 .mini-card {
   border-radius: 24px;
-}
-
-.auth-side {
-  position: sticky;
-  top: 28px;
-  padding: 24px;
-}
-
-.auth-side.compact {
-  display: grid;
-  place-items: center;
-  gap: 14px;
-  min-height: 220px;
-}
-
-.logo-stage {
-  position: relative;
-  width: 88px;
-  height: 88px;
-  display: grid;
-  place-items: center;
-}
-
-.logo-ring {
-  position: absolute;
-  inset: 0;
-  border-radius: 999px;
-  border: 2px solid rgba(37, 99, 235, 0.24);
-  background: radial-gradient(circle at 30% 30%, rgba(110, 157, 255, 0.18), transparent 58%);
-}
-
-.logo-core {
-  position: relative;
-  z-index: 1;
-  width: 64px;
-  height: 64px;
-  border-radius: 18px;
-  display: grid;
-  place-items: center;
-  font-family: "Sora", sans-serif;
-  font-weight: 700;
-  color: var(--navy-900);
-  background: #ffffff;
-  border: 1px solid rgba(24, 52, 87, 0.1);
-  box-shadow: var(--shadow-md);
-}
-
-.brand-mark {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 84px;
-  height: 40px;
-  padding: 0 16px;
-  border-radius: 999px;
-  background: var(--blue-100);
-  color: var(--navy-900);
-  font-family: "Sora", sans-serif;
-  font-size: 0.92rem;
 }
 
 .side-title,
@@ -258,19 +343,6 @@ a {
   border-radius: 999px;
   background: #ffffff;
   border: 1px solid rgba(24, 52, 87, 0.08);
-}
-
-.auth-main {
-  padding: 28px;
-  display: grid;
-  align-items: center;
-  min-height: 620px;
-}
-
-.form-card {
-  max-width: 460px;
-  padding: 4px 0;
-  margin: 0 auto;
 }
 
 .page-title {
@@ -553,5 +625,52 @@ a {
   .dashboard-header {
     align-items: flex-start;
     flex-direction: column;
+  }
+}
+
+/* ====== Users Table ====== */
+.users-table-wrap {
+  overflow-x: auto;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+}
+
+.users-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.users-table thead {
+  background: var(--surface-soft);
+}
+
+.users-table th {
+  padding: 12px 16px;
+  text-align: left;
+  font-weight: 700;
+  color: var(--navy-900);
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+.users-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+}
+
+.users-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.users-table tbody tr:hover {
+  background: rgba(59, 130, 246, 0.03);
+}
+
+@media (max-width: 720px) {
+  .users-table th:nth-child(2),
+  .users-table td:nth-child(2) {
+    display: none;
   }
 }

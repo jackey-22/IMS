@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext.jsx";
 
 const metrics = [
@@ -37,9 +37,14 @@ export default function DashboardPage() {
             <span className="muted">CoreInventory</span>
             <h1 className="dashboard-title">Inventory Dashboard</h1>
           </div>
-          <button className="ghost-button" type="button" onClick={handleLogout}>
-            Log out
-          </button>
+          <div className="button-row">
+            {session?.user?.role === "admin" && (
+              <Link to="/admin/users" className="ghost-button">Manage Users</Link>
+            )}
+            <button className="ghost-button" type="button" onClick={handleLogout}>
+              Log out
+            </button>
+          </div>
         </header>
 
         <section className="dashboard-hero">

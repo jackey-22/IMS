@@ -4,6 +4,9 @@ import dotenv from "dotenv";
 import { connectDb } from "./config/db.js";
 import healthRouter from "./routes/health.js";
 import authRouter from "./routes/auth.js";
+import productsRouter from "./routes/products.js";
+import warehousesRouter from "./routes/warehouses.js";
+import categoriesRouter from "./routes/categories.js";
 
 dotenv.config();
 
@@ -15,6 +18,9 @@ app.use(express.json());
 
 app.use("/api/health", healthRouter);
 app.use("/api/auth", authRouter);
+app.use("/api/products", productsRouter);
+app.use("/api/warehouses", warehousesRouter);
+app.use("/api/categories", categoriesRouter);
 
 app.use((req, res) => {
   res.status(404).json({ message: "Route not found" });
